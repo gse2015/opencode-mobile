@@ -41,19 +41,26 @@ React Native / Expo mobile client for opencode. Connects to an opencode server i
 app/                    # Expo Router file-based routing
 ├── (tabs)/             # Tab navigation (sessions, connections, settings)
 ├── session/[id].tsx    # Chat screen
-└── connection/         # Add/edit connection screens
+├── connection/         # Add/edit connection screens
+└── demo.tsx            # Offline scripted demo (no server needed)
 src/
 ├── components/         # Reusable UI components
 │   ├── markdown/       # Markdown renderer (wraps react-native-marked)
-│   └── AuthGate.tsx    # Biometric auth gate
+│   ├── chat/           # Chat-specific components (MessageBubble, ToolCallCard, DiffView, pickers…)
+│   ├── AuthGate.tsx    # Biometric auth gate
+│   ├── ErrorBoundary.tsx, TelemetryConsentModal.tsx, UpdateBanner.tsx
 ├── lib/
-│   ├── sdk.ts          # HTTP + SSE client for opencode server API
-│   └── types.ts        # Re-exported types
+│   ├── sdk.ts          # Hand-written HTTP + SSE client for opencode server API
+│   ├── types.ts        # App-level types + re-exports from sdk.ts
+│   ├── i18n/           # react-i18next catalogs (en.json / zh-Hans.json)
+│   └── …               # Pure-logic helpers, each with a node:test sibling (sse, headers, api-error…)
 └── stores/             # Zustand state stores
-    ├── sessions.ts     # Session list, messages, parts
-    ├── connections.ts  # Server connections, client lifecycle
-    ├── events.ts       # SSE event stream, status tracking, permissions, questions
-    └── auth.ts         # Biometric auth
+    ├── connections.ts  # Server connections, client lifecycle (owns the HTTP/SSE client)
+    ├── sessions.ts     # Session list, messages, parts, sendMessage
+    ├── events.ts       # SSE event stream, reconnect, status, permissions, questions
+    ├── catalog.ts      # Agents/commands/providers/model selection
+    ├── auth.ts         # Biometric auth
+    └── settings.ts     # pageSize, notifications, locale
 scripts/
 └── android-cua-smoke.py  # LLM-powered CUA E2E test
 ```
@@ -61,9 +68,10 @@ scripts/
 ## Key Patterns
 
 - **SSE for real-time**: The `events.ts` store connects to `/global/event` and dispatches to other stores
-- **Fire-and-forget sends**: `sendMessage` posts to the API but doesn't await response; SSE events drive all UI updates
+- **Fire-and-forget sends**: `sendMessage` awaits the `prompt_async` POST submission (so failures propagate back to the composer) but does not await the model response — SSE events drive all UI updates
 - **Session status**: Derived from `session.status` events (`idle`/`busy`/`retry`) + last part type for status text
 - **Markdown**: `react-native-marked` wrapped in our own `Markdown` component with custom `CodeBlock` (copy button). Designed to be swappable/publishable later.
+- **Reconnect resilience**: SSE never replays missed events; `resyncBusySessions()` re-verifies busy sessions against the server after reconnect so a spinner can't stick (issue #123). 401/403 stops retrying entirely (`authError`) to avoid hammering bad credentials.
 
 ## Style Guide
 

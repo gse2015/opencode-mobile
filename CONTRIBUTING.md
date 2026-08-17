@@ -38,11 +38,13 @@ npm install       # or: bun install
 
 **Environment variables**
 
-Copy the example env file and fill in optional values (Sentry DSN is only needed for crash testing):
+All environment variables are optional — the app works without any of them. Copy the example file and fill in values if you want to test telemetry/crash reporting:
 
 ```bash
-cp .env.example .env   # if the example doesn't exist yet, skip this
+cp .env.example .env
 ```
+
+See `.env.example` for the full list (`EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_POSTHOG_KEY`/`HOST`, `EXPO_PUBLIC_CHATWOOT_*`).
 
 ---
 
@@ -99,20 +101,23 @@ In the app, add a connection:
 
 ## Code style and linting
 
-The project uses ESLint and TypeScript strict mode. Run before committing:
+The project uses ESLint (`eslint-config-expo`) and TypeScript strict mode. Run before committing:
 
 ```bash
 npm run lint          # ESLint
 npm run typecheck     # TypeScript type check (tsc --noEmit)
+npm test              # node:test unit tests
 ```
 
-There is no auto-formatter enforced by CI yet (Prettier is configured but optional). Keeping existing style consistent is more important than personal preference.
+There is no auto-formatter enforced by CI (Prettier is not configured). Keeping existing style consistent is more important than personal preference.
 
 Key conventions:
 - Components: functional, with typed props via TypeScript `interface`
-- State: Zustand stores in `src/stores/`
-- API calls: through the SDK client in `src/lib/`
+- State: Zustand stores in `src/stores/` (connections, sessions, events, catalog, auth, settings)
+- API calls: through the hand-written SDK client in `src/lib/sdk.ts` (mirrors the opencode SDK API shape; no external SDK package)
 - Screens: file-based routing via Expo Router under `app/`
+- Localisation: all user-facing strings go through `react-i18next` catalogs in `src/lib/i18n/` (`en.json` / `zh-Hans.json`)
+- Docs: `docs/` holds in-depth engineering docs; see `README.md` → "Repository layout" for a full map
 
 ---
 
@@ -141,7 +146,7 @@ Use the [Feature Request template](https://github.com/dzianisv/opencode-mobile/i
 ## Submitting a pull request
 
 1. Fork the repo and create a branch off `main`: `git checkout -b feat/my-feature`
-2. Make your changes. Keep commits focused — one logical change per commit.
+2. Make your changes. Keep commits focused — one logical change per commit. Follow the existing commit style (`type(scope): subject (#PR)`).
 3. Ensure `npm run lint` and `npm run typecheck` pass.
 4. If you changed UI, include a screenshot in the PR description.
 5. Open the PR against `dzianisv/opencode-mobile main`. Fill in the PR template.

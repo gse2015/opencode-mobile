@@ -44,7 +44,7 @@ It builds an AAB (Android App Bundle), signs it with the release keystore, and u
 
 ## Releasing (proven runbook)
 
-1. Bump the version in **four** places, then run `npm run check:versions` before you push: `package.json` `version`, `app.json` `expo.version`, and `android/app/build.gradle` `versionName` — plus `versionCode` in **both** `app.json` (`expo.android.versionCode`) and `build.gradle`, incremented by one.
+1. Bump the version in **five** fields, then run `npm run check:versions` before you push: `package.json` `version`, `app.json` `expo.version`, and `android/app/build.gradle` `versionName` (all three must match the new version) — plus `versionCode` in **both** `app.json` (`expo.android.versionCode`) and `build.gradle`, each incremented by one from its current value.
    - Play does not need the hand-bumped `versionCode` (the publish workflow overrides it with `github.run_number + 100`, so the Play code is e.g. `152`, unrelated to the `app.json` number). **F-Droid and direct-APK installs do.** They key upgrades off `versionCode`, so a release that reuses the previous one is silently never offered to anyone who already has that code installed. v0.4.15 shipped with v0.4.14's `versionCode 41` for exactly this reason (fixed in #180) — the F-Droid publish failed outright and the GitHub release never got created.
 2. Add the changelog for the **new versionCode** in both `distribution/changelogs/<versionCode>.txt` and `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` (F-Droid reads the fastlane copy), and update the **Play** release notes in `distribution/whatsnew/whatsnew-en-US` (single file, applied to the build being uploaded; **max 500 chars**). `whatsnew` — not the fastlane `changelogs/*.txt` — is what the Play publish uses (`whatsNewDirectory` in the workflow). `check:versions` enforces that the changelog named after the versionCode describes the version you are releasing. Merge to `main`.
 3. Tag the release: `git tag -a vX.Y.Z <sha> -m "..." && git push origin vX.Y.Z`. This triggers the publish workflow → **production** track, `status: completed`.
@@ -104,7 +104,7 @@ the email collection. To resubmit:
 **Known earlier blocker (if it resurfaces):** a prior release (v0.4.5) was blocked by Google
 with a "Missing sign-in details" rejection under **App access**, not Data Safety — Play
 reviewers could not exercise the app because it requires the user's own opencode server and
-Play had no way to sign in / connect one. That was resolved (see `HANDOFF.md`) by providing
+Play had no way to sign in / connect one. That was resolved (see `docs/archive/handoff-2026-06-21.md`) by providing
 reviewer instructions plus a temporary demo server URL in the **App access** form (see the
 reviewer-instructions block in `distribution/play-listing.md` → "App access"). If a future
 review flags "sign-in details" again, the fix is the same: confirm **App access** still has
