@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discuss an idea first
+    url: https://github.com/dzianisv/opencode-mobile/discussions
+    about: Want to explore an idea before opening a formal issue? Start a GitHub Discussion. We discuss features and design questions there before they become issues.
+  - name: Report a security vulnerability
+    url: https://github.com/dzianisv/opencode-mobile/blob/main/SECURITY.md
+    about: Do NOT file security reports in public issues or discussions. Email support@agentlabs.cc instead (see SECURITY.md).
