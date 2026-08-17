@@ -110,7 +110,7 @@ try {
   if (!res.ok) {
     record("B_selfhosted", "fdroid-selfhosted", "FAIL", `index-v1.json HTTP ${res.status}`);
   } else {
-    const idx = await res.json() as { packages?: Record<string, Array<{ versionName?: string }>> };
+    const idx = await res.json() as { packages?: Record<string, { versionName?: string }[]> };
     const versions = idx.packages?.[APP_ID];
     if (versions && versions.length) {
       record("B_selfhosted", "fdroid-selfhosted", "PASS", `serves ${APP_ID} v${versions[0].versionName ?? "?"}`);
@@ -168,7 +168,7 @@ if (!has("gh")) {
 } else {
   const r = spawnSync("gh", ["repo", "view", "dzianisv/opencode-mobile", "--json", "repositoryTopics,homepageUrl"], { encoding: "utf8" });
   try {
-    const m = JSON.parse(r.stdout) as { repositoryTopics?: Array<{ name: string }>; homepageUrl?: string };
+    const m = JSON.parse(r.stdout) as { repositoryTopics?: { name: string }[]; homepageUrl?: string };
     const topics = (m.repositoryTopics ?? []).map(t => t.name).join(",");
     const home = m.homepageUrl || "";
     if (topics || home) record("F_repo", "gh-repo-meta", "PASS", `topics=[${topics || "none"}] homepage=${home || "none"}`);

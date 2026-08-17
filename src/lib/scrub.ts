@@ -19,7 +19,7 @@ export function scrubString(s: string): string {
 // every URL wholesale, erase every known server host (bare `host=…` fragments
 // and log lines carry hosts without a scheme, which the URL regex misses),
 // and blank bare IPv4 addresses as a catch-all for hosts we never parsed.
-export function redactHostAndUrls(text: string, hosts?: Array<string | undefined>): string {
+export function redactHostAndUrls(text: string, hosts?: (string | undefined)[]): string {
   let out = text.replace(/https?:\/\/[^\s)\]}"']+/gi, "<redacted-url>")
   for (const host of hosts ?? []) {
     if (host) out = out.split(host).join("<redacted-host>")

@@ -97,7 +97,6 @@ export default function SessionScreen() {
     sendMessage,
     abortSession,
     loadOlderMessages,
-    revertToMessage,
     unrevertSession,
   } = useSessions()
 
@@ -197,7 +196,8 @@ export default function SessionScreen() {
   const inputRef = useRef(input)
   inputRef.current = input
 
-  const applyRevertResult = useCallback((result: Awaited<ReturnType<typeof revertToMessage>>) => {
+  const applyRevertResult = useCallback(
+    (result: Awaited<ReturnType<ReturnType<typeof useSessions.getState>["revertToMessage"]>>) => {
     if (!result.ok) {
       if (result.reason === "unsupported") {
         Alert.alert(t("session.alerts.notSupportedTitle"), t("session.alerts.notSupportedMessage"))

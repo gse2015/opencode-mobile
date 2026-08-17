@@ -9,6 +9,7 @@
     "ios": "expo run:ios",
     "android": "expo run:android",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "check:versions": "node scripts/check-version-parity.mjs",
     "test": "node --test 'src/**/*.test.ts' 'scripts/*.test.mjs'"
   },
@@ -50,6 +51,8 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.10",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "^57.0.1",
     "typescript": "~5.9.2"
   },
   "expo": {

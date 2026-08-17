@@ -399,7 +399,7 @@ export function createClient(config: ClientConfig) {
       prompt: async (
         sessionID: string,
         params: {
-          parts: Array<{ type: "text"; text: string } | { type: "file"; mime: string; url: string; filename?: string }>
+          parts: ({ type: "text"; text: string } | { type: "file"; mime: string; url: string; filename?: string })[]
           model?: { providerID: string; modelID: string }
           agent?: string
           variant?: string
@@ -428,7 +428,7 @@ export function createClient(config: ClientConfig) {
           agent?: string
           model?: string
           variant?: string
-          parts?: Array<{ type: "file"; mime: string; url: string; filename?: string }>
+          parts?: { type: "file"; mime: string; url: string; filename?: string }[]
         },
       ): Promise<void> => {
         const url = `${config.baseUrl}/session/${sessionID}/command`
@@ -470,7 +470,7 @@ export function createClient(config: ClientConfig) {
 
     permission: {
       list: () =>
-        request<Array<{ id: string; sessionID: string; tool: string; input: unknown }>>(config, "/permission"),
+        request<{ id: string; sessionID: string; tool: string; input: unknown }[]>(config, "/permission"),
 
       reply: (requestID: string, reply: "once" | "always" | "reject") =>
         request<boolean>(config, `/permission/${requestID}/reply`, {
@@ -480,7 +480,7 @@ export function createClient(config: ClientConfig) {
     },
 
     question: {
-      list: () => request<Array<{ id: string; sessionID: string; questions: unknown[] }>>(config, "/question"),
+      list: () => request<{ id: string; sessionID: string; questions: unknown[] }[]>(config, "/question"),
 
       reply: (requestID: string, answers: string[][]) =>
         request<boolean>(config, `/question/${requestID}/reply`, {
@@ -505,7 +505,7 @@ export function createClient(config: ClientConfig) {
     provider: {
       list: () =>
         request<{
-          all: Array<{
+          all: {
             id: string
             name: string
             models: Record<
@@ -522,7 +522,7 @@ export function createClient(config: ClientConfig) {
                 variants?: Record<string, { reasoningEffort?: string }>
               }
             >
-          }>
+          }[]
           default: Record<string, string>
           connected: string[]
         }>(config, "/provider"),

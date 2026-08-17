@@ -37,7 +37,7 @@ export function DirectorySwitcher({ sheetRef, current, recents, serverHome, isDa
 
   // Build list: server default + recents (excluding current)
   const items = useMemo(() => {
-    const list: Array<{ label: string; dir?: string; active: boolean }> = [
+    const list: { label: string; dir?: string; active: boolean }[] = [
       { label: t("chat.directorySwitcher.serverDefaultLabel"), dir: undefined, active: !current },
     ]
     for (const dir of recents) {

@@ -22,7 +22,7 @@ interface Call {
 }
 
 // Sequenced fetch mock: each entry answers one call, in order.
-function mockFetch(responses: Array<{ status: number; json?: unknown }>) {
+function mockFetch(responses: { status: number; json?: unknown }[]) {
   const calls: Call[] = []
   const fetchFn = (async (url: RequestInfo | URL, init?: RequestInit) => {
     calls.push({ url: String(url), body: JSON.parse(String(init?.body ?? "{}")) })

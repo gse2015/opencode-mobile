@@ -24,11 +24,11 @@ import { buildAuth } from "../../src/lib/auth"
 // labelKey (not literal text): this is a module-level constant evaluated
 // before i18next is guaranteed ready, so the label is resolved with t() at
 // render time — same pattern as categoryMeta in src/lib/notifications.ts.
-const CONNECTION_TYPES: Array<{
+const CONNECTION_TYPES: {
   type: ConnectionType
   labelKey: string
   icon: keyof typeof Ionicons.glyphMap
-}> = [
+}[] = [
   { type: "local", labelKey: "connection.shared.types.local", icon: "wifi" },
   { type: "tunnel", labelKey: "connection.shared.types.tunnel", icon: "globe" },
   { type: "cloud", labelKey: "connection.shared.types.cloud", icon: "cloud" },

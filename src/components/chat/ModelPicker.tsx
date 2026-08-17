@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import BottomSheet, { BottomSheetBackdrop, BottomSheetSectionList, BottomSheetTextInput } from "@gorhom/bottom-sheet"
@@ -14,7 +14,7 @@ interface ModelItem {
 interface Provider {
   id: string
   name: string
-  models: Array<{ id: string; name: string }>
+  models: { id: string; name: string }[]
 }
 
 interface Props {

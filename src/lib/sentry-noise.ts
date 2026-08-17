@@ -45,7 +45,7 @@
 export type NoiseEventLike = {
   level?: string
   message?: string
-  exception?: { values?: Array<{ type?: string; value?: string; mechanism?: { handled?: boolean } }> }
+  exception?: { values?: { type?: string; value?: string; mechanism?: { handled?: boolean } }[] }
 }
 
 /** Client-side network and credential conditions. Unactionable server-side,
