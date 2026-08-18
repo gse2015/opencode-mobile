@@ -28,6 +28,8 @@ import {
   StatusIndicator,
   SlashPopover,
   ModelPicker,
+  ForkPicker,
+  type ForkableMessage,
   VariantPicker,
   ImageAttachments,
   SessionInfo,
@@ -40,6 +42,7 @@ import { useConnections } from "../../src/stores/connections"
 import { useAuth } from "../../src/stores/auth"
 import { useCatalog } from "../../src/stores/catalog"
 import { useSpeech } from "../../src/lib/speech"
+import { buildForkableMessages } from "../../src/lib/session-ops"
 
 // --- Builtin slash commands ---
 const BUILTIN_COMMANDS: SlashCommand[] = [
@@ -48,6 +51,48 @@ const BUILTIN_COMMANDS: SlashCommand[] = [
     title: "New Session",
     description: "Start a new session",
     icon: "add-circle-outline",
+    type: "builtin",
+  },
+  {
+    trigger: "undo",
+    title: "Undo",
+    description: "Revert to the last message",
+    icon: "arrow-undo-outline",
+    type: "builtin",
+  },
+  {
+    trigger: "redo",
+    title: "Redo",
+    description: "Restore reverted messages",
+    icon: "arrow-redo-outline",
+    type: "builtin",
+  },
+  {
+    trigger: "compact",
+    title: "Compact Session",
+    description: "Summarize and compress the conversation",
+    icon: "compress-outline",
+    type: "builtin",
+  },
+  {
+    trigger: "fork",
+    title: "Fork Session",
+    description: "Create a new session from a message",
+    icon: "git-branch-outline",
+    type: "builtin",
+  },
+  {
+    trigger: "share",
+    title: "Share Session",
+    description: "Create a shareable link",
+    icon: "share-social-outline",
+    type: "builtin",
+  },
+  {
+    trigger: "unshare",
+    title: "Unshare Session",
+    description: "Remove the shared link",
+    icon: "link-outline",
     type: "builtin",
   },
   {
@@ -83,6 +128,7 @@ export default function SessionScreen() {
   const flatListRef = useRef<FlatList>(null)
   const modelSheetRef = useRef<BottomSheet>(null)
   const variantSheetRef = useRef<BottomSheet>(null)
+  const forkSheetRef = useRef<BottomSheet>(null)
   const [input, setInput] = useState("")
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [showInfo, setShowInfo] = useState(false)
@@ -121,6 +167,12 @@ export default function SessionScreen() {
     abortSession,
     loadOlderMessages,
     unrevertSession,
+    undoLastMessage,
+    redoSession,
+    compactSession,
+    forkSession,
+    shareSession,
+    unshareSession,
   } = useSessions()
 
   // Derive sending state for this specific session
@@ -209,6 +261,13 @@ export default function SessionScreen() {
           parts: (parts && parts[msg.id]) || [],
         }))
         .reverse(),
+    [messages, parts, revertMessageID],
+  )
+
+  // Candidate fork points: user messages (skipping optimistic temp- ones and
+  // anything hidden behind a pending revert), with a text preview for the picker.
+  const forkableMessages = useMemo<ForkableMessage[]>(
+    () => buildForkableMessages(messages || [], parts || {}, revertMessageID),
     [messages, parts, revertMessageID],
   )
 
@@ -322,6 +381,79 @@ export default function SessionScreen() {
           case "new":
             router.back()
             return
+          case "undo":
+            setInput("")
+            // Read fresh messages via getState() — keeps this callback
+            // referentially stable instead of re-creating on every SSE update.
+            if (!useSessions.getState().messages.some((m) => m.role === "user" && !m.id.startsWith("temp-"))) {
+              Alert.alert(t("session.alerts.undoNothingTitle"), t("session.alerts.undoNothingMessage"))
+              return
+            }
+            undoLastMessage().then((result) => applyRevertResult(result))
+            return
+          case "redo":
+            setInput("")
+            if (!currentSession?.revert) {
+              Alert.alert(t("session.alerts.redoNothingTitle"), t("session.alerts.redoNothingMessage"))
+              return
+            }
+            redoSession()
+            return
+          case "compact":
+            setInput("")
+            compactSession().then((result) => {
+              if (result.ok) {
+                Alert.alert(t("session.alerts.compactSuccessTitle"), t("session.alerts.compactSuccessMessage"))
+              } else if (result.reason === "unsupported") {
+                Alert.alert(t("session.alerts.compactUnsupportedTitle"), t("session.alerts.compactUnsupportedMessage"))
+              } else if (result.reason === "busy") {
+                Alert.alert(t("session.alerts.compactBusyTitle"), t("session.alerts.compactBusyMessage"))
+              } else if (result.reason === "auth") {
+                Alert.alert(t("session.alerts.compactAuthTitle"), t("session.alerts.compactAuthMessage"))
+              } else {
+                Alert.alert(t("session.alerts.compactFailedTitle"), t("session.alerts.compactFailedMessage"))
+              }
+            })
+            return
+          case "fork":
+            setInput("")
+            if (forkableMessages.length === 0) {
+              Alert.alert(t("session.alerts.forkEmptyTitle"), t("session.alerts.forkEmptyMessage"))
+              return
+            }
+            forkSheetRef.current?.expand()
+            return
+          case "share":
+            setInput("")
+            shareSession().then((result) => {
+              if (result.ok && result.url) {
+                Clipboard.setStringAsync(result.url)
+                Alert.alert(t("session.alerts.shareSuccessTitle"), t("session.alerts.shareSuccessMessage"))
+              } else if (result.reason === "unsupported") {
+                Alert.alert(t("session.alerts.shareUnsupportedTitle"), t("session.alerts.shareUnsupportedMessage"))
+              } else if (result.reason === "auth") {
+                Alert.alert(t("session.alerts.shareAuthTitle"), t("session.alerts.shareAuthMessage"))
+              } else {
+                Alert.alert(t("session.alerts.shareFailedTitle"), t("session.alerts.shareFailedMessage"))
+              }
+            })
+            return
+          case "unshare":
+            setInput("")
+            if (!currentSession?.share?.url) {
+              Alert.alert(t("session.alerts.unshareNothingTitle"), t("session.alerts.unshareNothingMessage"))
+              return
+            }
+            unshareSession().then((result) => {
+              if (result.ok) {
+                Alert.alert(t("session.alerts.unshareSuccessTitle"), t("session.alerts.unshareSuccessMessage"))
+              } else if (result.reason === "unsupported") {
+                Alert.alert(t("session.alerts.unshareUnsupportedTitle"), t("session.alerts.unshareUnsupportedMessage"))
+              } else {
+                Alert.alert(t("session.alerts.unshareFailedTitle"), t("session.alerts.unshareFailedMessage"))
+              }
+            })
+            return
           case "model":
             setInput("")
             modelSheetRef.current?.expand()
@@ -334,7 +466,27 @@ export default function SessionScreen() {
       }
       setInput(`/${cmd.trigger} `)
     },
-    [router, cycleAgent],
+    [router, cycleAgent, undoLastMessage, redoSession, compactSession, forkableMessages.length, shareSession, unshareSession, currentSession?.revert, currentSession?.share?.url, applyRevertResult, t],
+  )
+
+  // Fork at a chosen message — navigate to the new session once created.
+  const handleForkSelect = useCallback(
+    async (messageID: string) => {
+      const result = await forkSession(messageID)
+      if (result.ok && result.session) {
+        const qs = directory ? `?directory=${encodeURIComponent(directory)}` : ""
+        router.replace(`/session/${result.session.id}${qs}`)
+        return
+      }
+      if (result.reason === "unsupported") {
+        Alert.alert(t("session.alerts.forkUnsupportedTitle"), t("session.alerts.forkUnsupportedMessage"))
+      } else if (result.reason === "auth") {
+        Alert.alert(t("session.alerts.forkAuthTitle"), t("session.alerts.forkAuthMessage"))
+      } else {
+        Alert.alert(t("session.alerts.forkFailedTitle"), t("session.alerts.forkFailedMessage"))
+      }
+    },
+    [forkSession, router, directory, t],
   )
 
   // --- Image picking ---
@@ -890,6 +1042,14 @@ export default function SessionScreen() {
         selected={variant}
         isDark={isDark}
         onSelect={setVariant}
+      />
+
+      {/* Fork point picker bottom sheet */}
+      <ForkPicker
+        sheetRef={forkSheetRef}
+        messages={forkableMessages}
+        isDark={isDark}
+        onSelect={handleForkSelect}
       />
     </>
   )

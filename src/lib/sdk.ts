@@ -466,6 +466,24 @@ export function createClient(config: ClientConfig) {
         request<Session>(config, `/session/${sessionID}/unrevert`, {
           method: "POST",
         }),
+
+      // Session compaction — summarizes and compresses the conversation.
+      // Older servers lack this route (404) — callers degrade gracefully.
+      compact: (sessionID: string) => request<void>(config, `/session/${sessionID}/compact`, { method: "POST" }),
+
+      // Forks a new session starting from messageID. Like compact, this is
+      // a v1-era route that newer servers may not expose.
+      fork: (sessionID: string, messageID: string) =>
+        request<Session>(config, `/session/${sessionID}/fork`, {
+          method: "POST",
+          body: JSON.stringify({ messageID }),
+        }),
+
+      // Share / unshare — the server responds with the updated session whose
+      // share.url carries the link (or null after unshare).
+      share: (sessionID: string) => request<Session>(config, `/session/${sessionID}/share`, { method: "POST" }),
+
+      unshare: (sessionID: string) => request<Session>(config, `/session/${sessionID}/unshare`, { method: "POST" }),
     },
 
     permission: {

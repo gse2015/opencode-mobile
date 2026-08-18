@@ -7,6 +7,7 @@ import { AnalyticsEvent, track } from "../lib/analytics"
 import { extractPromptFromParts, type PromptFromParts } from "../lib/prompt-from-parts"
 import { mergeIncomingMessage } from "../lib/message-merge"
 import { isColdSessionLoad, isLiveEventForSession } from "../lib/session-load-reconcile"
+import { classifySessionOpError, findLastUserMessage } from "../lib/session-ops"
 
 // Helper to convert API response to our internal format
 function parseMessages(response: MessageWithParts[]): { messages: Message[]; parts: Record<string, Part[]> } {
@@ -57,11 +58,23 @@ interface SessionsState {
   revertToMessage: (messageID: string) => Promise<RevertResult>
   unrevertSession: () => Promise<void>
 
+  // Session operations exposed as slash commands (/undo /redo /compact /fork /share /unshare)
+  undoLastMessage: () => Promise<RevertResult>
+  redoSession: () => Promise<void>
+  compactSession: () => Promise<CompactResult>
+  forkSession: (messageID: string) => Promise<ForkResult>
+  shareSession: () => Promise<ShareResult>
+  unshareSession: () => Promise<UnshareResult>
+
   // Event handling
   handleEvent: (event: Event) => void
 }
 
 export type RevertResult = ({ ok: true } & PromptFromParts) | { ok: false; reason: "unsupported" | "auth" | "error" }
+export type CompactResult = { ok: boolean; reason?: "unsupported" | "auth" | "busy" | "error" }
+export type ForkResult = { ok: boolean; session?: Session; reason?: "unsupported" | "auth" | "error" }
+export type ShareResult = { ok: boolean; url?: string; reason?: "unsupported" | "auth" | "error" }
+export type UnshareResult = { ok: boolean; reason?: "unsupported" | "auth" | "error" }
 
 // Sessions the user aborted since they last went busy. Mirrors events.ts's
 // erroredSessions: SessionStatus has no "aborted" variant — an aborted run
@@ -407,6 +420,118 @@ export const useSessions = create<SessionsState>((set, get) => ({
     } catch (err) {
       console.error("Failed to unrevert session:", err)
       set({ error: "Failed to restore reverted messages" })
+    }
+  },
+
+  // /undo — revert to the last user message (same semantics as the desktop
+  // command palette: find the last user message and revert everything after
+  // it, restoring its text into the composer). Temp/optimistic messages are
+  // skipped — they only exist client-side until the server confirms them.
+  undoLastMessage: async () => {
+    const { currentSession, messages } = get()
+    const last = findLastUserMessage(messages, currentSession?.revert?.messageID)
+    if (!last) return { ok: false, reason: "error" } as const
+    return get().revertToMessage(last.id)
+  },
+
+  // /redo — undo a pending revert (restore the hidden messages).
+  redoSession: async () => {
+    if (!get().currentSession?.revert) return
+    await get().unrevertSession()
+  },
+
+  // /compact — summarize and compress the current session. Older servers 404
+  // (unsupported); a busy session returns 503 (server-side ServiceUnavailable).
+  compactSession: async () => {
+    const client = clientFor(get().currentSession?.directory)
+    const session = get().currentSession
+    if (!client || !session) return { ok: false, reason: "error" } as const
+
+    try {
+      await client.session.compact(session.id)
+      return { ok: true } as const
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const reason = classifySessionOpError(err.status, true)
+        if (reason !== "error") return { ok: false, reason } as const
+      }
+      console.error("Failed to compact session:", err)
+      set({ error: "Failed to compact session" })
+      return { ok: false, reason: "error" } as const
+    }
+  },
+
+  // /fork — create a new session starting from messageID, then make it current.
+  forkSession: async (messageID) => {
+    const client = clientFor(get().currentSession?.directory)
+    const session = get().currentSession
+    if (!client || !session) return { ok: false, reason: "error" } as const
+
+    try {
+      const forked = await client.session.fork(session.id, messageID)
+      set({
+        currentSession: forked,
+        messages: [],
+        parts: {},
+        hasMore: false,
+        loadingMore: false,
+      })
+      return { ok: true, session: forked } as const
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const reason = classifySessionOpError(err.status)
+        // Exclude "busy" — only compaction distinguishes 503 (see compactSession).
+        if (reason === "unsupported" || reason === "auth") return { ok: false, reason } as const
+      }
+      console.error("Failed to fork session:", err)
+      set({ error: "Failed to fork session" })
+      return { ok: false, reason: "error" } as const
+    }
+  },
+
+  // /share — create a shareable link for the session.
+  shareSession: async () => {
+    const client = clientFor(get().currentSession?.directory)
+    const session = get().currentSession
+    if (!client || !session) return { ok: false, reason: "error" } as const
+
+    try {
+      const updated = await client.session.share(session.id)
+      set((state) => ({
+        currentSession: state.currentSession?.id === session.id ? updated : state.currentSession,
+      }))
+      return { ok: true, url: updated.share?.url } as const
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const reason = classifySessionOpError(err.status)
+        if (reason === "unsupported" || reason === "auth") return { ok: false, reason } as const
+      }
+      console.error("Failed to share session:", err)
+      set({ error: "Failed to share session" })
+      return { ok: false, reason: "error" } as const
+    }
+  },
+
+  // /unshare — remove the session's share link.
+  unshareSession: async () => {
+    const client = clientFor(get().currentSession?.directory)
+    const session = get().currentSession
+    if (!client || !session) return { ok: false, reason: "error" } as const
+
+    try {
+      const updated = await client.session.unshare(session.id)
+      set((state) => ({
+        currentSession: state.currentSession?.id === session.id ? updated : state.currentSession,
+      }))
+      return { ok: true } as const
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const reason = classifySessionOpError(err.status)
+        if (reason === "unsupported" || reason === "auth") return { ok: false, reason } as const
+      }
+      console.error("Failed to unshare session:", err)
+      set({ error: "Failed to remove share link" })
+      return { ok: false, reason: "error" } as const
     }
   },
 
