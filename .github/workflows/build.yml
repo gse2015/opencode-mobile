@@ -6,6 +6,9 @@ on:
     tags: ["v*"]
   pull_request:
     branches: [main]
+  # Manual trigger: build an APK on demand without pushing (e.g. from a fork,
+  # where push-triggered runs may not fire).
+  workflow_dispatch:
 
 jobs:
   test:
