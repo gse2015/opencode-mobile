@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   useColorScheme,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
@@ -85,6 +86,28 @@ export default function SessionScreen() {
   const [input, setInput] = useState("")
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [showInfo, setShowInfo] = useState(false)
+  // Android: KeyboardAvoidingView's padding relies on the keyboardDidShow
+  // event's screenY, which RN 0.81 reports incorrectly under edge-to-edge
+  // (window no longer resizes, so screenY stays at the full-screen bottom and
+  // the computed padding is 0 — the composer ends up hidden behind the
+  // keyboard; see #147 follow-up). The event's endCoordinates.height comes
+  // from IME insets and IS accurate, so track it manually on Android and pad
+  // the container ourselves. iOS keeps the proven behavior="padding" path.
+  const [androidKbInset, setAndroidKbInset] = useState(0)
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return
+    const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
+      setAndroidKbInset(e.endCoordinates.height)
+    })
+    const hideSub = Keyboard.addListener("keyboardDidHide", () => {
+      setAndroidKbInset(0)
+    })
+    return () => {
+      showSub.remove()
+      hideSub.remove()
+    }
+  }, [])
 
   const {
     currentSession,
@@ -592,9 +615,18 @@ export default function SessionScreen() {
       />
 
       <KeyboardAvoidingView
-        style={[s.container, isDark && s.containerDark]}
-        // Both platforms use "padding" so the composer/toolbar is pushed up
-        // above the keyboard via JS-measured keyboard height.
+        style={[
+          s.container,
+          isDark && s.containerDark,
+          // Android (edge-to-edge): RN's keyboardDidShow screenY is wrong, so
+          // KAV's own "padding" math produces 0 — the composer ends up hidden
+          // behind the keyboard. We disable KAV on Android (behavior=undefined
+          // falls through to a plain View that passes style through untouched)
+          // and apply the inset measured from accurate IME insets ourselves.
+          Platform.OS === "android" && { paddingBottom: androidKbInset },
+        ]}
+        // Both platforms use "padding" on iOS so the composer/toolbar is
+        // pushed up above the keyboard via JS-measured keyboard height.
         //
         // Android previously relied on the native android:windowSoftInputMode
         // (adjustResize, see AndroidManifest.xml) with behavior={undefined}
@@ -603,9 +635,11 @@ export default function SessionScreen() {
         // the window when the keyboard opens — the system assumes insets are
         // handled dynamically — so adjustResize became a no-op and the
         // bottom toolbar + input were left completely hidden behind the
-        // keyboard (#147). "padding" restores avoidance without depending
-        // on native resize.
-        behavior="padding"
+        // keyboard (#147). "padding" restored avoidance on iOS; on Android the
+        // keyboardDidShow screenY is also unreliable under edge-to-edge, so we
+        // measure the keyboard via IME insets and pad manually (above).
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        enabled={Platform.OS === "ios"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
         {/* Session info pulldown */}
