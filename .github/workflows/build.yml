@@ -47,6 +47,11 @@ jobs:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
       SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+      # Fork builds (e.g. this repo's gse2015 fork) have no Sentry secrets —
+      # without this, sentry.gradle tries to upload sourcemaps and fails the
+      # whole build. The parent repo keeps the secrets so uploads stay enabled
+      # there.
+      SENTRY_DISABLE_AUTO_UPLOAD: ${{ secrets.SENTRY_ORG == '' && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v6
 
