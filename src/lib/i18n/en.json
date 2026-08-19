@@ -133,6 +133,8 @@
       "compactFailedMessage": "Could not compact this session. Please try again.",
       "compactBusyTitle": "Session busy",
       "compactBusyMessage": "The agent is still working. Try compacting again once it finishes.",
+      "compactNoModelTitle": "No model selected",
+      "compactNoModelMessage": "Compaction needs a model to summarize the conversation. Select a model first.",
       "compactUnsupportedTitle": "Not supported",
       "compactUnsupportedMessage": "This server does not support session compaction. Please update the server and try again.",
       "compactAuthTitle": "Authentication failed",

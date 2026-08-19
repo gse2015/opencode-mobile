@@ -2,6 +2,7 @@ import { create } from "zustand"
 import { ApiError, type Session, type Message, type Part, type Event, type MessageWithParts, type Client } from "../lib/sdk"
 import { useConnections } from "./connections"
 import { useSettings } from "./settings"
+import { useCatalog } from "./catalog"
 import { addBreadcrumb } from "../lib/sentry"
 import { AnalyticsEvent, track } from "../lib/analytics"
 import { extractPromptFromParts, type PromptFromParts } from "../lib/prompt-from-parts"
@@ -71,7 +72,7 @@ interface SessionsState {
 }
 
 export type RevertResult = ({ ok: true } & PromptFromParts) | { ok: false; reason: "unsupported" | "auth" | "error" }
-export type CompactResult = { ok: boolean; reason?: "unsupported" | "auth" | "busy" | "error" }
+export type CompactResult = { ok: boolean; reason?: "unsupported" | "auth" | "busy" | "noModel" | "error" }
 export type ForkResult = { ok: boolean; session?: Session; reason?: "unsupported" | "auth" | "error" }
 export type ShareResult = { ok: boolean; url?: string; reason?: "unsupported" | "auth" | "error" }
 export type UnshareResult = { ok: boolean; reason?: "unsupported" | "auth" | "error" }
@@ -440,15 +441,24 @@ export const useSessions = create<SessionsState>((set, get) => ({
     await get().unrevertSession()
   },
 
-  // /compact — summarize and compress the current session. Older servers 404
-  // (unsupported); a busy session returns 503 (server-side ServiceUnavailable).
+  // /compact — summarize and compress the current session. The server runs
+  // an LLM summarization (slow — the SDK gives it a 5-minute timeout).
+  // Older servers 404 (unsupported); a busy session returns 503.
   compactSession: async () => {
     const client = clientFor(get().currentSession?.directory)
     const session = get().currentSession
     if (!client || !session) return { ok: false, reason: "error" } as const
 
+    // The summarization model — same selection the composer would use.
+    const model = useCatalog.getState().model
+    if (!model) return { ok: false, reason: "noModel" } as const
+
     try {
-      await client.session.compact(session.id)
+      await client.session.compact(session.id, model)
+      // Pull the updated messages (compaction part) — SSE should deliver it
+      // too, but a direct refresh keeps the list current even if the event
+      // is missed.
+      await get().refreshMessages()
       return { ok: true } as const
     } catch (err) {
       if (err instanceof ApiError) {

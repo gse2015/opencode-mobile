@@ -174,6 +174,10 @@ export interface HealthResponse {
 }
 
 const REQUEST_TIMEOUT_MS = 30_000
+// Session compaction runs an LLM summarization over the whole conversation —
+// large sessions take far longer than a normal request, so give it up to
+// 5 minutes before the client gives up.
+const COMPACT_TIMEOUT_MS = 300_000
 
 // Thrown by request() on a non-2xx response. Carries the HTTP status so
 // callers can distinguish e.g. 404 (older server, endpoint missing) from
@@ -214,6 +218,15 @@ async function request<T>(
   if (!response.ok) {
     const error = await response.text()
     throw apiErrorFor(response.status, `API Error: ${response.status} - ${error}`)
+  }
+
+  // Servers that also serve the web UI fall back unmatched routes to the SPA
+  // (HTTP 200 + text/html). A non-JSON success body means the route does not
+  // exist on this server version — surface it as a 404 so callers classify
+  // the operation as "unsupported" instead of failing to parse HTML.
+  const contentType = response.headers.get("content-type") || ""
+  if (contentType && !contentType.includes("application/json")) {
+    throw apiErrorFor(404, `Server returned a non-JSON response (${contentType}) - route not available`)
   }
 
   return response.json()
@@ -467,9 +480,21 @@ export function createClient(config: ClientConfig) {
           method: "POST",
         }),
 
-      // Session compaction — summarizes and compresses the conversation.
-      // Older servers lack this route (404) — callers degrade gracefully.
-      compact: (sessionID: string) => request<void>(config, `/session/${sessionID}/compact`, { method: "POST" }),
+      // Session compaction. Servers expose it as POST /session/:id/summarize
+      // with the model selection in the body (the newer /session/:id/compact
+      // / v2 compact routes are not wired up on current server builds).
+      // It runs an LLM summarization, so long sessions exceed the default
+      // 30s timeout — use COMPACT_TIMEOUT_MS.
+      compact: (sessionID: string, model: { providerID: string; modelID: string }) =>
+        request<unknown>(
+          config,
+          `/session/${sessionID}/summarize`,
+          {
+            method: "POST",
+            body: JSON.stringify({ sessionID, providerID: model.providerID, modelID: model.modelID }),
+          },
+          COMPACT_TIMEOUT_MS,
+        ),
 
       // Forks a new session starting from messageID. Like compact, this is
       // a v1-era route that newer servers may not expose.

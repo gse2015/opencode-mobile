@@ -133,6 +133,8 @@
       "compactFailedMessage": "无法压缩此会话。请重试。",
       "compactBusyTitle": "会话忙碌",
       "compactBusyMessage": "Agent 仍在工作。请等它完成后再次压缩。",
+      "compactNoModelTitle": "未选择模型",
+      "compactNoModelMessage": "压缩需要一个模型来摘要对话。请先选择一个模型。",
       "compactUnsupportedTitle": "不支持",
       "compactUnsupportedMessage": "此服务器不支持会话压缩。请更新服务器后重试。",
       "compactAuthTitle": "认证失败",

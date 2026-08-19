@@ -404,6 +404,8 @@ export default function SessionScreen() {
             compactSession().then((result) => {
               if (result.ok) {
                 Alert.alert(t("session.alerts.compactSuccessTitle"), t("session.alerts.compactSuccessMessage"))
+              } else if (result.reason === "noModel") {
+                Alert.alert(t("session.alerts.compactNoModelTitle"), t("session.alerts.compactNoModelMessage"))
               } else if (result.reason === "unsupported") {
                 Alert.alert(t("session.alerts.compactUnsupportedTitle"), t("session.alerts.compactUnsupportedMessage"))
               } else if (result.reason === "busy") {
