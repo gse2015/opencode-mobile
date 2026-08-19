@@ -5,7 +5,8 @@
 import { fetch as expoFetch } from "expo/fetch"
 import { buildRequestHeaders } from "./headers"
 import { SSEParser } from "./sse"
-import { apiErrorFor } from "./api-error"
+import { ApiAuthError, apiErrorFor, isAuthStatus } from "./api-error"
+import { isNonJsonBody } from "./api-response"
 import { loadSessionList } from "./session-list"
 import type { FileRoot } from "./file-roots"
 
@@ -215,18 +216,25 @@ async function request<T>(
     timeoutMs,
   )
 
+  // Non-2xx: keep the message shape ("API Error: <status> - <body>") that
+  // string-based classifiers rely on, but carry the status on the error so
+  // callers can branch on it (404 → "endpoint missing on this server",
+  // 503 → "busy/unavailable", 401/403 → ApiAuthError, which the SSE
+  // reconnect loop stops retrying on — see api-error.ts).
   if (!response.ok) {
     const error = await response.text()
-    throw apiErrorFor(response.status, `API Error: ${response.status} - ${error}`)
+    throw isAuthStatus(response.status)
+      ? new ApiAuthError(response.status, `API Error: ${response.status} - ${error}`)
+      : new ApiError(response.status, error)
   }
 
   // Servers that also serve the web UI fall back unmatched routes to the SPA
   // (HTTP 200 + text/html). A non-JSON success body means the route does not
   // exist on this server version — surface it as a 404 so callers classify
   // the operation as "unsupported" instead of failing to parse HTML.
-  const contentType = response.headers.get("content-type") || ""
-  if (contentType && !contentType.includes("application/json")) {
-    throw apiErrorFor(404, `Server returned a non-JSON response (${contentType}) - route not available`)
+  const contentType = response.headers.get("content-type")
+  if (isNonJsonBody(contentType)) {
+    throw new ApiError(404, `Server returned a non-JSON response (${contentType ?? "no content-type"}) - route not available`)
   }
 
   return response.json()
