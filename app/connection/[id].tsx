@@ -9,12 +9,14 @@ import {
   useColorScheme,
   ActivityIndicator,
   Alert,
+  Platform,
 } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 import { useTranslation } from "react-i18next"
 import { useConnections } from "../../src/stores/connections"
 import { useEvents } from "../../src/stores/events"
+import { useKeyboardInset } from "../../src/lib/use-keyboard-inset"
 import type { ConnectionType } from "../../src/lib/types"
 import { probeConnection, shareReport } from "../../src/lib/diagnostics"
 import { captureDiagnostic } from "../../src/lib/sentry"
@@ -52,6 +54,9 @@ export default function EditConnectionScreen() {
   const [password, setPassword] = useState("")
   const [isTesting, setIsTesting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  // Android IME inset: pads the scroll content so bottom fields (password,
+  // save button) scroll above the keyboard — see useKeyboardInset.
+  const kbInset = useKeyboardInset()
 
   useEffect(() => {
     if (connection) {
@@ -183,7 +188,7 @@ export default function EditConnectionScreen() {
   return (
     <ScrollView
       style={[styles.container, isDark && styles.containerDark]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, Platform.OS === "android" && { paddingBottom: kbInset }]}
       keyboardShouldPersistTaps="handled"
     >
       {/* Connection Type */}

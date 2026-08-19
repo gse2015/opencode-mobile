@@ -29,6 +29,7 @@ import { DirectorySwitcher, DirectoryBrowserSheet } from "../../src/components/c
 import { groupByDirectory } from "../../src/lib/session-grouping"
 import { UpdateBanner } from "../../src/components/UpdateBanner"
 import { nameOf } from "../../src/lib/path-utils"
+import { useKeyboardInset } from "../../src/lib/use-keyboard-inset"
 import { SETUP_GUIDE_URL } from "../../src/lib/links"
 
 function formatTime(timestamp: number, t: (key: string, opts?: Record<string, unknown>) => string): string {
@@ -162,6 +163,12 @@ export default function SessionsScreen() {
   const isDark = colorScheme === "dark"
   const { t } = useTranslation()
   const [showNewSession, setShowNewSession] = useState(false)
+  // Android IME inset (see useKeyboardInset) — pads the modal overlays so
+  // bottom sheets/centered cards sit above the keyboard. KeyboardAvoidingView
+  // can't do this on Android: RN reports keyboardDidShow screenY as the
+  // full-screen bottom under edge-to-edge, so its "height" math yields 0
+  // (same root cause as the chat-composer fix in app/session/[id].tsx).
+  const kbInset = useKeyboardInset()
   const [customDir, setCustomDir] = useState("")
   const [isCreating, setIsCreating] = useState(false)
   const [renaming, setRenaming] = useState<Session | null>(null)
@@ -596,7 +603,14 @@ export default function SessionsScreen() {
 
       {/* New Session Info Modal */}
       <Modal visible={showNewSession} animationType="slide" transparent>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <KeyboardAvoidingView
+          style={[
+            styles.modalOverlay,
+            // flex-end bottom sheet: padding lifts it above the keyboard.
+            Platform.OS === "android" && { paddingBottom: kbInset },
+          ]}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
           <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setShowNewSession(false)} />
           <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
             <View style={styles.modalHeader}>
@@ -817,7 +831,12 @@ export default function SessionsScreen() {
       {/* Rename modal */}
       <Modal visible={!!renaming} animationType="fade" transparent>
         <KeyboardAvoidingView
-          style={[styles.modalOverlay, { justifyContent: "center" }]}
+          style={[
+            styles.modalOverlay,
+            { justifyContent: "center" },
+            // Centered card: padding centers it in the area above the keyboard.
+            Platform.OS === "android" && { paddingBottom: kbInset },
+          ]}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <TouchableOpacity style={styles.modalDismiss} activeOpacity={1} onPress={() => setRenaming(null)} />

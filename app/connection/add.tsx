@@ -10,11 +10,13 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Platform,
 } from "react-native"
 import { router } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 import { useTranslation } from "react-i18next"
 import { useConnections } from "../../src/stores/connections"
+import { useKeyboardInset } from "../../src/lib/use-keyboard-inset"
 import type { ConnectionType } from "../../src/lib/types"
 import { probeConnection, shareReport } from "../../src/lib/diagnostics"
 import { captureDiagnostic } from "../../src/lib/sentry"
@@ -47,6 +49,10 @@ export default function AddConnectionScreen() {
   const [password, setPassword] = useState("")
   const [isConnecting, setIsConnecting] = useState(false)
   const [waitlistEmail, setWaitlistEmail] = useState("")
+  // Android IME inset: pads the scroll content so bottom fields (password,
+  // waitlist input, connect button) scroll above the keyboard. KAV can't do
+  // this on Android under edge-to-edge — see useKeyboardInset.
+  const kbInset = useKeyboardInset()
   // "queued" = the POST failed but the signup is persisted on-device and will
   // be retried on the next foreground/connectivity (AGE-87). It is NOT "sent".
   const [waitlistState, setWaitlistState] = useState<"idle" | "submitting" | "joined" | "queued">("idle")
@@ -317,7 +323,7 @@ export default function AddConnectionScreen() {
     return (
       <ScrollView
         style={[styles.container, isDark && styles.containerDark]}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, Platform.OS === "android" && { paddingBottom: kbInset }]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.quickHeader}>
@@ -523,7 +529,7 @@ export default function AddConnectionScreen() {
   return (
     <ScrollView
       style={[styles.container, isDark && styles.containerDark]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, Platform.OS === "android" && { paddingBottom: kbInset }]}
       keyboardShouldPersistTaps="handled"
     >
       <TouchableOpacity style={styles.backToQuick} onPress={() => setMode("quick")}>
