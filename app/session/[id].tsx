@@ -1035,6 +1035,7 @@ export default function SessionScreen() {
         selected={model}
         isDark={isDark}
         onSelect={handleModelSelect}
+        keyboardInset={androidKbInset}
       />
 
       {/* Reasoning effort (variant) picker bottom sheet */}
@@ -1044,6 +1045,7 @@ export default function SessionScreen() {
         selected={variant}
         isDark={isDark}
         onSelect={setVariant}
+        keyboardInset={androidKbInset}
       />
 
       {/* Fork point picker bottom sheet */}
@@ -1052,6 +1054,7 @@ export default function SessionScreen() {
         messages={forkableMessages}
         isDark={isDark}
         onSelect={handleForkSelect}
+        keyboardInset={androidKbInset}
       />
     </>
   )

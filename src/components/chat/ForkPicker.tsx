@@ -1,8 +1,9 @@
 import { useMemo, useCallback } from "react"
-import { View, Text, TouchableOpacity, FlatList, StyleSheet } from "react-native"
+import { View, Text, TouchableOpacity, FlatList, StyleSheet, useWindowDimensions } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import BottomSheet, { BottomSheetBackdrop } from "@gorhom/bottom-sheet"
 import { useTranslation } from "react-i18next"
+import { sheetKeyboardLayout } from "../../lib/sheet-keyboard"
 import type { ForkableMessage } from "../../lib/session-ops"
 
 export type { ForkableMessage }
@@ -12,6 +13,8 @@ interface Props {
   isDark: boolean
   sheetRef: React.RefObject<BottomSheet | null>
   onSelect: (messageID: string) => void
+  // Measured keyboard inset (px) from the parent screen (see use-keyboard-inset.ts).
+  keyboardInset?: number
 }
 
 function formatTime(ts: number): string {
@@ -24,8 +27,16 @@ function formatTime(ts: number): string {
   return `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`
 }
 
-export function ForkPicker({ messages, isDark, sheetRef, onSelect }: Props) {
+export function ForkPicker({ messages, isDark, sheetRef, onSelect, keyboardInset }: Props) {
   const { t } = useTranslation()
+  const { height: windowHeight } = useWindowDimensions()
+  // Can be opened via slash while the composer keyboard is still up — lift
+  // above the keyboard via measured IME insets (see sheet-keyboard.ts).
+  const { snapPoints, bottomInset } = sheetKeyboardLayout({
+    nominalSnapPoints: ["45%", "75%"],
+    containerHeight: windowHeight,
+    keyboardInset: keyboardInset ?? 0,
+  })
 
   // Newest first — the most likely fork point is near the end.
   const sorted = useMemo(() => [...messages].sort((a, b) => b.time - a.time), [messages])
@@ -42,7 +53,8 @@ export function ForkPicker({ messages, isDark, sheetRef, onSelect }: Props) {
     <BottomSheet
       ref={sheetRef}
       index={-1}
-      snapPoints={["45%", "75%"]}
+      snapPoints={snapPoints}
+      bottomInset={bottomInset}
       // See DirectoryBrowserSheet.tsx for why this is required alongside
       // static snapPoints (issue #104): without it the sheet can never open.
       enableDynamicSizing={false}

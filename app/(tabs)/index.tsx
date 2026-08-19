@@ -883,6 +883,7 @@ export default function SessionsScreen() {
         onBrowse={() =>
           openBrowser(activeConnection?.directory || currentProject?.path?.absolute || null, "switch")
         }
+        keyboardInset={kbInset}
       />
 
       {/* Browsable folder picker — used for both "new session in..." and
@@ -894,6 +895,7 @@ export default function SessionsScreen() {
         isDark={isDark}
         onSelect={onBrowserSelect}
         onDismiss={onBrowserDismiss}
+        keyboardInset={kbInset}
       />
     </View>
   )

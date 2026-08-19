@@ -1,8 +1,9 @@
 import { useCallback, useRef, useState } from "react"
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import BottomSheet, { BottomSheetBackdrop, BottomSheetFlatList, BottomSheetTextInput } from "@gorhom/bottom-sheet"
 import { useTranslation } from "react-i18next"
+import { sheetKeyboardLayout } from "../../lib/sheet-keyboard"
 import type { Client, FileEntry } from "../../lib/sdk"
 import { parentOf, nameOf } from "../../lib/path-utils"
 import { normalizeRoots, type FileRoot } from "../../lib/file-roots"
@@ -18,6 +19,8 @@ interface Props {
   onSelect: (directory: string) => void
   // Called whenever the sheet fully closes (selection or cancel).
   onDismiss?: () => void
+  // Measured keyboard inset (px) from the parent screen (see use-keyboard-inset.ts).
+  keyboardInset?: number
 }
 
 export function DirectoryBrowserSheet({
@@ -27,6 +30,7 @@ export function DirectoryBrowserSheet({
   isDark,
   onSelect,
   onDismiss,
+  keyboardInset,
 }: Props) {
   const { t } = useTranslation()
   const [browseDir, setBrowseDir] = useState<string | null>(null)
@@ -34,6 +38,15 @@ export function DirectoryBrowserSheet({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [jumpPath, setJumpPath] = useState("")
+  // The "jump to path" input opens the keyboard while the sheet is up — lift
+  // the sheet via measured IME insets (the library's own keyboard math is
+  // broken under Android edge-to-edge, see sheet-keyboard.ts).
+  const { height: windowHeight } = useWindowDimensions()
+  const { snapPoints, bottomInset } = sheetKeyboardLayout({
+    nominalSnapPoints: ["65%", "92%"],
+    containerHeight: windowHeight,
+    keyboardInset: keyboardInset ?? 0,
+  })
   // Pinned top-level entries (drives, home dir) fetched from GET /file/roots.
   // Stays empty on older servers that don't expose the endpoint, or while a
   // fetch is in flight — the manual "Jump to path" input keeps working
@@ -170,8 +183,10 @@ export function DirectoryBrowserSheet({
     <BottomSheet
       ref={sheetRef}
       index={-1}
-      snapPoints={["65%", "92%"]}
-      // Static percentage snapPoints are provided above, but @gorhom/bottom-sheet
+      snapPoints={snapPoints}
+      bottomInset={bottomInset}
+      // Static percentage snapPoints (or keyboard-capped px detents, see
+      // sheetKeyboardLayout) are provided above, but @gorhom/bottom-sheet
       // v5 defaults enableDynamicSizing to true, which requires content wrapped
       // in a size-reporting component (BottomSheetView) to ever compute a valid
       // detent — this sheet's children are plain Views/BottomSheetFlatList, so
