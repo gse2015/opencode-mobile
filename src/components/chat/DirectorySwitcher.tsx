@@ -1,9 +1,9 @@
 import { useState, useCallback, useMemo } from "react"
-import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from "react-native"
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import BottomSheet, { BottomSheetBackdrop, BottomSheetFlatList, BottomSheetTextInput } from "@gorhom/bottom-sheet"
+import BottomSheet, { BottomSheetFlatList, BottomSheetTextInput } from "@gorhom/bottom-sheet"
+import { SheetBackdrop } from "./SheetBackdrop"
 import { useTranslation } from "react-i18next"
-import { sheetKeyboardLayout } from "../../lib/sheet-keyboard"
 
 interface Props {
   sheetRef: React.RefObject<BottomSheet | null>
@@ -15,22 +15,11 @@ interface Props {
   // Opens a browsable folder picker rooted at the server's filesystem, as an
   // alternative to typing a path. Optional so existing callers keep working.
   onBrowse?: () => void
-  // Measured keyboard inset (px) from the parent screen (see use-keyboard-inset.ts).
-  keyboardInset?: number
 }
 
-export function DirectorySwitcher({ sheetRef, current, recents, serverHome, isDark, onSwitch, onBrowse, keyboardInset }: Props) {
+export function DirectorySwitcher({ sheetRef, current, recents, serverHome, isDark, onSwitch, onBrowse }: Props) {
   const { t } = useTranslation()
   const [custom, setCustom] = useState("")
-  const { height: windowHeight } = useWindowDimensions()
-  // The custom-path input opens the keyboard while the sheet is up — lift the
-  // sheet via measured IME insets (the library's own keyboard math is broken
-  // under Android edge-to-edge, see sheet-keyboard.ts).
-  const { snapPoints, bottomInset } = sheetKeyboardLayout({
-    nominalSnapPoints: ["45%", "70%"],
-    containerHeight: windowHeight,
-    keyboardInset: keyboardInset ?? 0,
-  })
 
   const handleSelect = useCallback(
     (dir?: string) => {
@@ -66,8 +55,9 @@ export function DirectorySwitcher({ sheetRef, current, recents, serverHome, isDa
     <BottomSheet
       ref={sheetRef}
       index={-1}
-      snapPoints={snapPoints}
-      bottomInset={bottomInset}
+      // Static snap points (see ModelPicker comment: keyboard-driven sheet
+      // geometry regressed the chat screen).
+      snapPoints={["45%", "70%"]}
       // See DirectoryBrowserSheet.tsx for why this is required alongside
       // static snapPoints (issue #104): without it the sheet can never open.
       enableDynamicSizing={false}
@@ -77,9 +67,7 @@ export function DirectorySwitcher({ sheetRef, current, recents, serverHome, isDa
       android_keyboardInputMode="adjustResize"
       backgroundStyle={isDark ? s.sheetDark : s.sheet}
       handleIndicatorStyle={{ backgroundColor: isDark ? "#666666" : "#cccccc" }}
-      backdropComponent={(props) => (
-        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
-      )}
+      backdropComponent={SheetBackdrop}
       onChange={(idx) => {
         if (idx === -1) setCustom("")
       }}

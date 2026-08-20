@@ -228,6 +228,15 @@ These same secrets are set as GitHub Actions secrets on `dzianisv/opencode-mobil
 
 **Do NOT store secrets in `.env` files committed to the repo.** `.env` is gitignored — local copy only.
 
+### Android signing keystore (this fork)
+
+Fork-owned key, created 2026-08-19: RSA 2048, alias `upload`, subject `CN=Android Release, OU=Android, O=agentlabs, C=US`, valid until 2054-01-04, SHA-256 `AEDF585CBB9DD9B95FDE8E7F6A1E5A041CC195969A98369AB711F9A95BD8E4F0`.
+
+- Stored **only** as GitHub secrets on `gse2015/opencode-mobile`: `KEYSTORE_BASE64` (the PKCS12 file), `KEYSTORE_PASSWORD` (= `KEY_PASSWORD`; identical, as PKCS12 requires), `KEY_ALIAS` = `upload`. The keystore file never lives in the repo or on any machine — CI materializes it at build time.
+- `build.yml` signs **every** build with this key (any branch/trigger) when the secrets exist. Without them it falls back to a throwaway debug key — such APKs CANNOT install over a previously installed app (signature mismatch forces an uninstall).
+- Consequence: all APKs from this fork are mutually updatable in place (same package + signature), even at the same versionCode. Phone apps signed by an old throwaway build need exactly **one** uninstall to migrate to this key.
+- Password backup: put one in the Bitwarden folder `opencode-mobile` (entry `Android Release Keystore Password`). Losing the password = losing the key = forced-uninstall-on-update for users again. (Also recoverable from the GH secret `KEYSTORE_PASSWORD` by anyone with repo access.)
+
 ## VibeBrowser CLI (Browser Automation)
 
 Use `@vibebrowser/cli` against the authenticated remote browser relay. Do not

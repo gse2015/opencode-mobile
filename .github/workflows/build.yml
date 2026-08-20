@@ -101,7 +101,13 @@ jobs:
 
       - name: Setup signing
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* && -n "${{ secrets.KEYSTORE_BASE64 }}" ]]; then
+          # Use the fixed production keystore whenever the secrets are set —
+          # for ANY branch/trigger, not only tags. A constant signing key is
+          # what lets a newly built APK install OVER a previously installed
+          # one (data preserved); the old per-build random debug key made
+          # every build require an uninstall first.
+          # Secrets: KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD
+          if [[ -n "${{ secrets.KEYSTORE_BASE64 }}" ]]; then
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
             echo "RELEASE_STORE_FILE=release.keystore" >> "$GITHUB_ENV"
             echo "RELEASE_STORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
@@ -112,7 +118,7 @@ jobs:
             keytool -genkey -v -keystore android/app/debug.keystore -storepass android \
               -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
-            echo "Signing: debug keystore (non-release build)"
+            echo "Signing: debug keystore (FALLBACK — builds from this branch are NOT installable over previous apps)"
           fi
 
       - name: Build APK

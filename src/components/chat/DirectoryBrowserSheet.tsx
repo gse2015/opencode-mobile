@@ -1,9 +1,9 @@
 import { useCallback, useRef, useState } from "react"
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native"
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import BottomSheet, { BottomSheetBackdrop, BottomSheetFlatList, BottomSheetTextInput } from "@gorhom/bottom-sheet"
+import BottomSheet, { BottomSheetFlatList, BottomSheetTextInput } from "@gorhom/bottom-sheet"
+import { SheetBackdrop } from "./SheetBackdrop"
 import { useTranslation } from "react-i18next"
-import { sheetKeyboardLayout } from "../../lib/sheet-keyboard"
 import type { Client, FileEntry } from "../../lib/sdk"
 import { parentOf, nameOf } from "../../lib/path-utils"
 import { normalizeRoots, type FileRoot } from "../../lib/file-roots"
@@ -19,8 +19,6 @@ interface Props {
   onSelect: (directory: string) => void
   // Called whenever the sheet fully closes (selection or cancel).
   onDismiss?: () => void
-  // Measured keyboard inset (px) from the parent screen (see use-keyboard-inset.ts).
-  keyboardInset?: number
 }
 
 export function DirectoryBrowserSheet({
@@ -30,7 +28,6 @@ export function DirectoryBrowserSheet({
   isDark,
   onSelect,
   onDismiss,
-  keyboardInset,
 }: Props) {
   const { t } = useTranslation()
   const [browseDir, setBrowseDir] = useState<string | null>(null)
@@ -38,15 +35,6 @@ export function DirectoryBrowserSheet({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [jumpPath, setJumpPath] = useState("")
-  // The "jump to path" input opens the keyboard while the sheet is up — lift
-  // the sheet via measured IME insets (the library's own keyboard math is
-  // broken under Android edge-to-edge, see sheet-keyboard.ts).
-  const { height: windowHeight } = useWindowDimensions()
-  const { snapPoints, bottomInset } = sheetKeyboardLayout({
-    nominalSnapPoints: ["65%", "92%"],
-    containerHeight: windowHeight,
-    keyboardInset: keyboardInset ?? 0,
-  })
   // Pinned top-level entries (drives, home dir) fetched from GET /file/roots.
   // Stays empty on older servers that don't expose the endpoint, or while a
   // fetch is in flight — the manual "Jump to path" input keeps working
@@ -183,16 +171,16 @@ export function DirectoryBrowserSheet({
     <BottomSheet
       ref={sheetRef}
       index={-1}
-      snapPoints={snapPoints}
-      bottomInset={bottomInset}
-      // Static percentage snapPoints (or keyboard-capped px detents, see
-      // sheetKeyboardLayout) are provided above, but @gorhom/bottom-sheet
-      // v5 defaults enableDynamicSizing to true, which requires content wrapped
-      // in a size-reporting component (BottomSheetView) to ever compute a valid
-      // detent — this sheet's children are plain Views/BottomSheetFlatList, so
-      // contentHeight never resolves and the sheet can never open (expand() has
-      // no valid snap position to animate to). Disable dynamic sizing so the
-      // explicit snapPoints above are used directly. See GitHub issue #104.
+      // Static snap points (see ModelPicker comment: keyboard-driven sheet
+      // geometry regressed the chat screen).
+      snapPoints={["65%", "92%"]}
+      // @gorhom/bottom-sheet v5 defaults enableDynamicSizing to true, which
+      // requires content wrapped in a size-reporting component (BottomSheetView)
+      // to ever compute a valid detent — this sheet's children are plain
+      // Views/BottomSheetFlatList, so contentHeight never resolves and the
+      // sheet can never open (expand() has no valid snap position to animate
+      // to). Disable dynamic sizing so the explicit snapPoints above are used
+      // directly. See GitHub issue #104.
       enableDynamicSizing={false}
       enablePanDownToClose
       keyboardBehavior="interactive"
@@ -200,9 +188,7 @@ export function DirectoryBrowserSheet({
       android_keyboardInputMode="adjustResize"
       backgroundStyle={isDark ? s.sheetDark : s.sheet}
       handleIndicatorStyle={{ backgroundColor: isDark ? "#666666" : "#cccccc" }}
-      backdropComponent={(props) => (
-        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
-      )}
+      backdropComponent={SheetBackdrop}
       onChange={handleSheetChange}
     >
       <View style={s.header}>

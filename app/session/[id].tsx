@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   useColorScheme,
-  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
@@ -43,6 +42,7 @@ import { useAuth } from "../../src/stores/auth"
 import { useCatalog } from "../../src/stores/catalog"
 import { useSpeech } from "../../src/lib/speech"
 import { buildForkableMessages } from "../../src/lib/session-ops"
+import { useKeyboardInset } from "../../src/lib/use-keyboard-inset"
 
 // --- Builtin slash commands ---
 const BUILTIN_COMMANDS: SlashCommand[] = [
@@ -132,28 +132,14 @@ export default function SessionScreen() {
   const [input, setInput] = useState("")
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [showInfo, setShowInfo] = useState(false)
-  // Android: KeyboardAvoidingView's padding relies on the keyboardDidShow
-  // event's screenY, which RN 0.81 reports incorrectly under edge-to-edge
-  // (window no longer resizes, so screenY stays at the full-screen bottom and
-  // the computed padding is 0 — the composer ends up hidden behind the
-  // keyboard; see #147 follow-up). The event's endCoordinates.height comes
-  // from IME insets and IS accurate, so track it manually on Android and pad
-  // the container ourselves. iOS keeps the proven behavior="padding" path.
-  const [androidKbInset, setAndroidKbInset] = useState(0)
-
-  useEffect(() => {
-    if (Platform.OS !== "android") return
-    const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
-      setAndroidKbInset(e.endCoordinates.height)
-    })
-    const hideSub = Keyboard.addListener("keyboardDidHide", () => {
-      setAndroidKbInset(0)
-    })
-    return () => {
-      showSub.remove()
-      hideSub.remove()
-    }
-  }, [])
+  // Android keyboard inset: measured from IME insets + window shrink (see
+  // use-keyboard-inset.ts). KeyboardAvoidingView's padding relies on the
+  // keyboardDidShow screenY, which RN 0.81 reports incorrectly under
+  // edge-to-edge (padding comes out 0 — issue #147 follow-up). The hook's
+  // window-shrink signal also covers OEM ROMs that still resize the window,
+  // where the IME event alone under-reported the occlusion and the toolbar
+  // row ended up partially behind the keyboard (unclickable).
+  const androidKbInset = useKeyboardInset()
 
   const {
     currentSession,
@@ -1035,7 +1021,6 @@ export default function SessionScreen() {
         selected={model}
         isDark={isDark}
         onSelect={handleModelSelect}
-        keyboardInset={androidKbInset}
       />
 
       {/* Reasoning effort (variant) picker bottom sheet */}
@@ -1045,7 +1030,6 @@ export default function SessionScreen() {
         selected={variant}
         isDark={isDark}
         onSelect={setVariant}
-        keyboardInset={androidKbInset}
       />
 
       {/* Fork point picker bottom sheet */}
@@ -1054,7 +1038,6 @@ export default function SessionScreen() {
         messages={forkableMessages}
         isDark={isDark}
         onSelect={handleForkSelect}
-        keyboardInset={androidKbInset}
       />
     </>
   )

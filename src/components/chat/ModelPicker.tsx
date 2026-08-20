@@ -1,9 +1,9 @@
 import { useState, useCallback, useMemo } from "react"
-import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from "react-native"
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import BottomSheet, { BottomSheetBackdrop, BottomSheetSectionList, BottomSheetTextInput } from "@gorhom/bottom-sheet"
+import BottomSheet, { BottomSheetSectionList, BottomSheetTextInput } from "@gorhom/bottom-sheet"
+import { SheetBackdrop } from "./SheetBackdrop"
 import { useTranslation } from "react-i18next"
-import { sheetKeyboardLayout } from "../../lib/sheet-keyboard"
 
 interface ModelItem {
   providerID: string
@@ -24,26 +24,11 @@ interface Props {
   isDark: boolean
   onSelect: (providerID: string, modelID: string) => void
   sheetRef: React.RefObject<BottomSheet | null>
-  // Measured keyboard inset (px) from the parent screen — Android only,
-  // 0/undefined when the keyboard is hidden (see use-keyboard-inset.ts).
-  keyboardInset?: number
 }
 
-export function ModelPicker({ providers, selected, isDark, onSelect, sheetRef, keyboardInset }: Props) {
+export function ModelPicker({ providers, selected, isDark, onSelect, sheetRef }: Props) {
   const { t } = useTranslation()
   const [search, setSearch] = useState("")
-  const { height: windowHeight } = useWindowDimensions()
-  // Keyboard avoidance is driven from measured IME insets (see
-  // sheet-keyboard.ts): bottom-sheet's "interactive" mode computes its offset
-  // as SCREEN_HEIGHT - height - screenY, and under Android edge-to-edge the
-  // (wrong) screenY cancels it to ~0, so without a measured lift the sheet —
-  // and the search input inside it — stays covered by the keyboard.
-  const { snapPoints, bottomInset } = sheetKeyboardLayout({
-    nominalSnapPoints: ["50%", "80%"],
-    containerHeight: windowHeight,
-    keyboardInset: keyboardInset ?? 0,
-  })
-
   const sections = useMemo(() => {
     const list = Array.isArray(providers) ? providers : []
     const q = search.toLowerCase()
@@ -98,8 +83,13 @@ export function ModelPicker({ providers, selected, isDark, onSelect, sheetRef, k
     <BottomSheet
       ref={sheetRef}
       index={-1}
-      snapPoints={snapPoints}
-      bottomInset={bottomInset}
+      // Static snap points. Deliberately NOT keyboard-driven: passing a
+      // changing bottomInset/snapPoints to a closed sheet lifts its body onto
+      // the screen (invisible touch-eater above the keyboard), and changing
+      // them mid-open-animation makes gorhom snap the sheet back closed
+      // (its OnSnapPointsChange reaction force-returns to the closed
+      // position). keyboardBehavior="interactive" handles IME avoidance.
+      snapPoints={["50%", "80%"]}
       // See DirectoryBrowserSheet.tsx for why this is required alongside
       // static snapPoints (issue #104): without it the sheet can never open.
       enableDynamicSizing={false}
@@ -109,9 +99,7 @@ export function ModelPicker({ providers, selected, isDark, onSelect, sheetRef, k
       android_keyboardInputMode="adjustResize"
       backgroundStyle={isDark ? s.sheetDark : s.sheet}
       handleIndicatorStyle={{ backgroundColor: isDark ? "#666666" : "#cccccc" }}
-      backdropComponent={(props) => (
-        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
-      )}
+      backdropComponent={SheetBackdrop}
       onChange={(idx) => {
         if (idx === -1) setSearch("")
       }}

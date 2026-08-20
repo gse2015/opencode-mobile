@@ -1,8 +1,8 @@
-import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from "react-native"
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
 import { Ionicons } from "@expo/vector-icons"
-import BottomSheet, { BottomSheetBackdrop, BottomSheetFlatList } from "@gorhom/bottom-sheet"
+import BottomSheet, { BottomSheetFlatList } from "@gorhom/bottom-sheet"
+import { SheetBackdrop } from "./SheetBackdrop"
 import { useTranslation } from "react-i18next"
-import { sheetKeyboardLayout } from "../../lib/sheet-keyboard"
 
 interface VariantOption {
   id: string | null
@@ -16,22 +16,10 @@ interface Props {
   isDark: boolean
   onSelect: (variant: string | null) => void
   sheetRef: React.RefObject<BottomSheet | null>
-  // Measured keyboard inset (px) from the parent screen (see use-keyboard-inset.ts).
-  keyboardInset?: number
 }
 
-export function VariantPicker({ variants, selected, isDark, onSelect, sheetRef, keyboardInset }: Props) {
+export function VariantPicker({ variants, selected, isDark, onSelect, sheetRef }: Props) {
   const { t } = useTranslation()
-  const { height: windowHeight } = useWindowDimensions()
-  // The sheet can be opened while the composer's keyboard is still up (the
-  // variant chip sits next to it) — lift it above the keyboard the same way
-  // as ModelPicker (measured IME insets; the library's own math is broken
-  // under Android edge-to-edge, see sheet-keyboard.ts).
-  const { snapPoints, bottomInset } = sheetKeyboardLayout({
-    nominalSnapPoints: ["30%", "50%"],
-    containerHeight: windowHeight,
-    keyboardInset: keyboardInset ?? 0,
-  })
 
   const effortDescriptions: Record<string, string> = {
     low: t("chat.variantPicker.effort.low"),
@@ -62,17 +50,17 @@ export function VariantPicker({ variants, selected, isDark, onSelect, sheetRef, 
     <BottomSheet
       ref={sheetRef}
       index={-1}
-      snapPoints={snapPoints}
-      bottomInset={bottomInset}
+      // Static snap points (see ModelPicker comment: keyboard-driven sheet
+      // geometry regressed the chat screen — closed sheets ate touches and
+      // mid-open changes snapped the sheet closed).
+      snapPoints={["30%", "50%"]}
       // See DirectoryBrowserSheet.tsx for why this is required alongside
       // static snapPoints (issue #104): without it the sheet can never open.
       enableDynamicSizing={false}
       enablePanDownToClose
       backgroundStyle={isDark ? s.sheetDark : s.sheet}
       handleIndicatorStyle={{ backgroundColor: isDark ? "#666666" : "#cccccc" }}
-      backdropComponent={(props) => (
-        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.5} />
-      )}
+      backdropComponent={SheetBackdrop}
     >
       <View style={s.header}>
         <Text style={[s.title, isDark && s.textWhite]}>{t("chat.variantPicker.title")}</Text>
