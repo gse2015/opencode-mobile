@@ -47,13 +47,6 @@ if (changelog !== null) {
   }
 }
 
-const fastlanePath = `fastlane/metadata/android/en-US/changelogs/${expectedCode}.txt`;
-try {
-  await readFile(fastlanePath, "utf8");
-} catch {
-  errors.push(`${fastlanePath} is missing — F-Droid reads its release notes from here`);
-}
-
 if (errors.length) {
   console.error(errors.join("\n"));
   process.exitCode = 1;

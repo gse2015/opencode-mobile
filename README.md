@@ -1,12 +1,10 @@
 # OpenCode Mobile
 
 **The open-source Android client for the [opencode](https://github.com/sst/opencode) AI coding agent.**
-AI-assisted coding from your phone — Android, via Google Play, F-Droid, or a direct APK.
+AI-assisted coding from your phone — Android, as a direct signed APK.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![F-Droid repo](https://img.shields.io/badge/F--Droid-add_our_repo-1976D2?logo=f-droid)](https://dzianisv.github.io/opencode-mobile/fdroid/repo)
-[![Download APK](https://img.shields.io/badge/Download-APK-green?logo=android)](https://github.com/dzianisv/opencode-mobile/releases/latest)
-[![Google Play](https://img.shields.io/badge/Google_Play-Available-4CAF50?logo=google-play)](https://play.google.com/store/apps/details?id=cc.agentlabs.opencode)
+[![Download APK](https://img.shields.io/badge/Download-APK-green?logo=android)](https://github.com/gse2015/opencode-mobile/releases/latest)
 
 > **Not affiliated with opencode.** OpenCode Mobile is an independent, community-built client and is
 > not made by, endorsed by, or affiliated with the opencode / Anomaly team. It talks to an opencode
@@ -20,20 +18,16 @@ AI-assisted coding from your phone — Android, via Google Play, F-Droid, or a d
 
 ## Install (Android)
 
-There are **three working ways** to install OpenCode Mobile today, all for Android:
+Download the latest signed APK from this repo's releases and install it
+manually (allow "install unknown apps" for your browser/file manager on the
+first install):
 
-1. **Google Play** — **https://play.google.com/store/apps/details?id=cc.agentlabs.opencode**
+**https://github.com/gse2015/opencode-mobile/releases/latest**
 
-2. **F-Droid (self-hosted repo)** — add our self-hosted repo to any F-Droid client, then install/update from there:
-   ```
-   https://dzianisv.github.io/opencode-mobile/fdroid/repo
-   ```
-   In the F-Droid app: **Settings → Repositories → + (add)** and paste the URL above. Current version: **v0.4.15**.
+Updates are in-place: each new release carries a higher `versionCode`, so a
+new APK installs over the previous one without uninstalling.
 
-3. **Direct signed APK** — download the latest release and install it manually:
-   **https://github.com/dzianisv/opencode-mobile/releases/latest**
-
-> iOS is not available (see [Roadmap](#roadmap)). IzzyOnDroid submission is pending.
+> iOS is not available (see [Roadmap](#roadmap)).
 
 ---
 
@@ -64,17 +58,14 @@ OpenCode Mobile is a React Native / Expo app that brings the power of the [openc
 
 ## Get OpenCode Mobile
 
-Package: `cc.agentlabs.opencode` · Android only · current version v0.4.15
+Package: `cc.agentlabs.opencode` · Android only · current version v0.4.16
 
 | Channel | Status | How |
 |---|---|---|
-| **Google Play** | **Live** | [play.google.com/store/apps/details?id=cc.agentlabs.opencode](https://play.google.com/store/apps/details?id=cc.agentlabs.opencode) |
-| **F-Droid (self-hosted repo)** | **Live** | Add [`https://dzianisv.github.io/opencode-mobile/fdroid/repo`](https://dzianisv.github.io/opencode-mobile/fdroid/repo) in your F-Droid client |
-| **Direct APK** | **Live** | [github.com/dzianisv/opencode-mobile/releases/latest](https://github.com/dzianisv/opencode-mobile/releases/latest) |
-| IzzyOnDroid | Submission pending | Not live yet |
+| **Direct signed APK** | **Live** | [github.com/gse2015/opencode-mobile/releases/latest](https://github.com/gse2015/opencode-mobile/releases/latest) |
 | Apple App Store / iOS | Not available | See [Roadmap](#roadmap) |
 
-> The three live, supported install channels are **Google Play**, the **F-Droid self-hosted repo**, and the **direct signed APK**, all Android. IzzyOnDroid is pending, and there is no iOS build.
+> The only install channel is the **direct signed APK** from this repo's GitHub Releases. There is no app-store distribution and no in-app update check — grab a new release when you want an update.
 
 ---
 
@@ -92,7 +83,7 @@ npm install -g opencode-ai
 OPENCODE_SERVER_PASSWORD=yourpassword opencode serve --hostname 0.0.0.0 --port 4096
 ```
 
-**Step 2 — Install OpenCode Mobile** via [Google Play, F-Droid, or a direct APK](#install-android) (or build from source — see [CONTRIBUTING.md](CONTRIBUTING.md)).
+**Step 2 — Install OpenCode Mobile** via the [direct signed APK](#install-android) (or build from source — see [CONTRIBUTING.md](CONTRIBUTING.md)).
 
 **Step 3 — Add a connection in the app**
 
@@ -137,7 +128,7 @@ OpenCode Mobile is a thin client. It speaks the opencode HTTP + SSE API: listing
 
 ## Project Status
 
-**Current version: v0.4.15**
+**Current version: v0.4.16**
 
 | Feature | Status |
 |---|---|
@@ -159,7 +150,7 @@ OpenCode Mobile is a thin client. It speaks the opencode HTTP + SSE API: listing
 
 ## Supporters and Sponsors
 
-OpenCode Mobile is built and maintained by [VIBE TECHNOLOGIES, LLC](https://agentlabs.cc/opencode). GitHub Sponsors help cover Sentry, EAS Build, and CI costs (~$60/month). The opencode Cloud hosted backend (planned, $10/mo) is the long-term revenue model.
+OpenCode Mobile is built and maintained by [VIBE TECHNOLOGIES, LLC](https://agentlabs.cc/opencode). GitHub Sponsors help cover Sentry and CI costs. The opencode Cloud hosted backend (planned, $10/mo) is the long-term revenue model.
 
 If OpenCode Mobile saves you time, consider sponsoring:
 
@@ -181,7 +172,6 @@ Tracked on the [GitHub Projects board](https://github.com/dzianisv/opencode-mobi
 
 Near-term priorities:
 - opencode Cloud one-tap connect + managed hosting
-- F-Droid mainline acceptance (FCM audit + reproducible build verification)
 - Tunnel setup wizard (Cloudflare / ngrok / Tailscale)
 - iPad / tablet layout
 - Offline session history cache
@@ -203,12 +193,12 @@ The repo is bigger than just the app — this map points you at the right place:
 | `app/` + `src/` | The React Native app itself (Expo Router routes in `app/`, SDK client + utilities in `src/lib/`, Zustand stores in `src/stores/`, UI components in `src/components/`) |
 | `android/` | Android native project (generated by `expo prebuild`, signing config lives in CI) |
 | `scripts/` | Tooling: version-parity checks, the LLM-driven CUA smoke test (`android-cua-smoke.py`), analytics/release scripts |
-| `distribution/` | Store-facing assets: Play/F-Droid/IzzyOnDroid listings, changelogs, privacy policy, play graphics |
+| `distribution/` | Changelogs, privacy policy, screenshots |
 | `docs/` | In-depth engineering docs: PRD (`prd.md`), threat model, security notes, TDD/analytics notes |
 | `docs-site/` | The SEO landing pages (static HTML, deployed to GitHub Pages) |
 | `website/` | The branded Next.js site (`opencode.agentlabs.cc`, deployed on Vercel) |
-| `.github/workflows/` | CI: build, CUA smoke, Play/F-Droid/App Store publish, security scan, analytics reports |
-| `fastlane/` | Fastlane metadata for store publishing (changelogs read by F-Droid) |
+| `.github/workflows/` | CI: build + GitHub Release on tag, CUA smoke (manual), security scan, analytics reports |
+| `PUBLISHING.md` | Release runbook (direct-APK only) |
 
 Historical handoff notes and per-task retrospectives live under `docs/archive/` and `.agents/retro.md` respectively.
 

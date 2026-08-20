@@ -17,23 +17,24 @@ See [`.agents/retro.md`](.agents/retro.md) for lessons from past tasks. Read ent
 **Diagnose before fixing:** Before patching or replacing any tool, confirm it is actually the cause. Copilot burned 39h assuming chrome-devtools-mcp was broken — it wasn't (it already drives the authenticated default context via `browser.defaultBrowserContext()`/`browser.pages()`). A 3-minute diagnostic subagent would have caught this.
 
 **Known gated steps:**
-- Play Console **API-access grant** to the service account — *was* the blocker; now granted (publish run 26662900471 succeeded, AAB on internal track, versionCode 19). One-time path if re-needed: Play Console → Setup → API access → link GCP project `opencode-mobile-deploy` → grant `playstore-deploy@opencode-mobile-deploy.iam.gserviceaccount.com` Admin/Release-manager.
-- **Add internal testers** (Play Console → Internal testing → Testers): the genuinely human-gated residual. Google's anti-automation blocks CDP-controlled Chrome sign-in, so this UI step needs a human (or a real, non-CDP browser session).
+- CUA smoke runs need the Azure OpenAI credentials (`.env.d/azure-openai.env` on a machine that has them, or the `AZURE_OPENAI_*` repo secrets) — run the script manually where the credentials exist (see "CUA Smoke Test").
+- This fork publishes to **no app store** (Play/F-Droid/App Store publishing was removed). The only release channel is a signed direct-install APK as a GitHub Release on this repo — see `PUBLISHING.md`.
 
 **Stop discipline:** If a tool returns the same error 3× (or no new artifact/commit is produced across several turns), STOP. Print a BLOCKED summary with the single human action needed. A vague "please do X and let me know" that leaves you idle is worse than a clean stop — don't do it.
 
 **Work-tracking discipline:**
 - Track multi-step/upgrade work in the **related GitHub issue**, updated via `gh issue comment` — NOT by repeatedly editing AGENTS.md and NOT in scratch files under `/tmp` (e.g. no `/tmp/playconsole-fill.md`). Keep reference material (listing copy, form answers) in the repo under `distribution/` or as issue comments.
 - AGENTS.md is for durable conventions only; do not churn it with task status.
-- **Never claim a step done without verifying it in the real channel** (e.g. an app exists only if it appears in the Play Console app-list; an AAB is the right package only if its manifest says so). Do not invent IDs.
+- **Never claim a step done without verifying it in the real channel** (a release exists only if it appears in this repo's GitHub Releases; an APK is the right package/version only if its manifest says so). Do not invent IDs.
 - **Driving web UIs:** snapshot → act on the *current* uids → re-snapshot. Never fire batched/guessed clicks; if a page shows "Loading"/an error toast, wait and re-snapshot rather than clicking blind.
 
 ## Overview
 
 React Native / Expo mobile client for opencode. Connects to an opencode server instance via HTTP + SSE for real-time updates.
 
-**Repo**: `dzianisv/opencode-mobile` (standalone, not part of opencode monorepo)
+**Repo**: `gse2015/opencode-mobile` (fork of `dzianisv/opencode-mobile`, standalone — not part of the opencode monorepo)
 **Package name**: `cc.agentlabs.opencode`
+**Distribution**: direct signed APK via this repo's GitHub Releases. No app-store publishing, no in-app update check (both removed from this fork).
 
 ## Architecture
 
@@ -48,7 +49,7 @@ src/
 │   ├── markdown/       # Markdown renderer (wraps react-native-marked)
 │   ├── chat/           # Chat-specific components (MessageBubble, ToolCallCard, DiffView, pickers…)
 │   ├── AuthGate.tsx    # Biometric auth gate
-│   ├── ErrorBoundary.tsx, TelemetryConsentModal.tsx, UpdateBanner.tsx
+│   ├── ErrorBoundary.tsx, TelemetryConsentModal.tsx
 ├── lib/
 │   ├── sdk.ts          # Hand-written HTTP + SSE client for opencode server API
 │   ├── types.ts        # App-level types + re-exports from sdk.ts
@@ -178,9 +179,9 @@ The correct Azure AI Services endpoint (with actual deployments) is:
 ### CI
 
 GitHub Actions workflow: `.github/workflows/cua-smoke.yml`
-Secrets required: `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT` (already set on `dzianisv/opencode-mobile`).
+Secrets required: `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT` (NOT set on this fork — the upstream repo has them).
 
-**Triggers**: Runs on push to `main` (with path filters) AND on `v*` tags (releases).
+**Triggers (fork)**: `workflow_dispatch` only. The auto triggers (push to `main`, `v*` tags) were removed because without the Azure secrets every automatic run fails on its first LLM call and red-sprays the pipeline. Re-add them once the secrets are on this repo.
 
 **Dispatch inputs** (workflow_dispatch):
 - `scenario`: `showcase` (default) | `e2e`
@@ -190,11 +191,13 @@ Secrets required: `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT` (already set o
 
 ### When to run CUA test
 
-**MANDATORY**: Run the CUA smoke test before any merge to `main` or release:
+**MANDATORY (whenever Azure credentials are available)**: Run the CUA smoke test before any merge to `main` or release:
 1. Before merging a PR that touches `src/**`, `app/**`, or `scripts/android-cua-smoke.py`
-2. After creating a release tag — CI runs it automatically
+2. Before pushing a release tag — run it manually (or via `workflow_dispatch` once the Azure secrets are on this repo)
 3. When debugging UI issues — run locally with `--include-xml` for richer context
 4. When validating a specific AI coding task — use `--e2e` or `--query`
+
+On-device verification by the owner is an accepted substitute when no Azure credentials are reachable (e.g. the v0.4.16 keyboard-regression release).
 
 If the CUA test fails, do NOT merge or release until fixed.
 
@@ -224,7 +227,7 @@ Secrets stored in vault:
 - `SENTRY_ORG` — `vibetechnologies`
 - `SENTRY_PROJECT` — `opencode-mobile`
 
-These same secrets are set as GitHub Actions secrets on `dzianisv/opencode-mobile` for CI builds.
+These secrets are set as GitHub Actions secrets on the **upstream** `dzianisv/opencode-mobile` repo. This fork does NOT hold any of them — `build.yml` detects the missing values and sets `SENTRY_DISABLE_AUTO_UPLOAD=true`, so fork builds simply skip source-map uploads instead of failing.
 
 **Do NOT store secrets in `.env` files committed to the repo.** `.env` is gitignored — local copy only.
 
@@ -262,19 +265,11 @@ npx -y @vibebrowser/cli@0.2.12 \
 
 ## GitHub Auth
 
-For pushes/gh CLI on this repo: `source ~/.env.d/github-dzianisv.env`
+Pushes/gh CLI on this repo use the machine's default GitHub credentials (`gse2015`). The upstream-only credential file `~/.env.d/github-dzianisv.env` (referenced by upstream docs) is for `dzianisv/*` operations and is not needed here.
 
-## Google Account
+## Upstream project (read-only)
 
-**ALL Google operations** (Play Console, GCP Console, YouTube, Firebase, etc.) use **`vibeteaichnologies@gmail.com`** — the VIBE TECHNOLOGIES, LLC account. `dzianisvv@gmail.com` is the personal account and does NOT have access to the project GCP resources, Play Console, or YouTube channel. Always verify the active account in the top-right corner before making changes. If GCP console shows `dzianisvv@gmail.com`, switch accounts via the avatar menu.
-
-## Google Play Console
-
-- **Developer account**: VIBE TECHNOLOGIES, LLC (ID: `8842655543970815326`), Google login `vibeteaichnologies@gmail.com`. The `/u/N/` index is NOT stable — if a console URL bounces to accept-terms/create-developer-account you're on the wrong Google account (e.g. `dzianisvv@gmail.com` hits a ToS gate); use the developer-account chooser to reach VIBE.
-- **Rebrand (2026-05-30)**: package renamed `ai.opencode.mobile` → `cc.agentlabs.opencode`. **App IS live on Play Store internal track** (v0.4.6, versionCode 33). CI publishes updates automatically via the service account after the first manual upload was completed. CI `packageName` = `cc.agentlabs.opencode`. NOTE: CI publish build needs the "Purge stale generated sources" step (commit 67e4c1f) or cached old-package autolinking breaks compile.
-- **Legacy app (orphaned)**: `ai.opencode.mobile`, app ID `4975545755653045321` — published v19 to internal track (run 26662900471), superseded by the rebrand.
-- **Track**: Internal testing (no review required, up to 100 testers)
-- **Service account**: `playstore-deploy@opencode-mobile-deploy.iam.gserviceaccount.com` (account-level API access already granted)
+This fork is developed independently and publishes nothing to any store. When checking upstream `dzianisv/opencode-mobile` for features/fixes worth adopting: the upstream app is published under the VIBE TECHNOLOGIES, LLC Google account (`vibeteaichnologies@gmail.com`, Play Console + GCP) — that context matters only for understanding upstream's release notes, never for this fork's releases.
 
 ## Related Issues
 

@@ -35,14 +35,10 @@ on:
         description: "Natural-language test query (enables --query mode, overrides scenario)"
         required: false
         default: ""
-  push:
-    branches: [main]
-    tags: ["v*"]
-    paths:
-      - "scripts/android-cua-smoke.py"
-      - "src/**"
-      - "app/**"
-      - ".github/workflows/cua-smoke.yml"
+  # NOTE (fork): auto triggers (push to main, v* tags) are removed — this repo
+  # has no AZURE_OPENAI_API_KEY / AZURE_OPENAI_ENDPOINT secrets, so every
+  # automatic run fails on the first LLM call and just red-sprays the pipeline.
+  # Restore the push/tag triggers once those secrets are added to the repo.
 
 jobs:
   cua-test:
