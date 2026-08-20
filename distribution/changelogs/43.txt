@@ -1,0 +1,7 @@
+v0.4.16 — Fixed: chat controls dead above the keyboard
+
+- Fixed an Android regression where tapping or scrolling in the area above the
+  input stopped working while the keyboard was open.
+- Bottom sheets (model picker, variants, fork point, directory switching) keep
+  static geometry while the keyboard is shown, so the IME can no longer swallow
+  touches between it and the top bar.
