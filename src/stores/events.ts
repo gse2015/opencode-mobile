@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { AppState } from "react-native"
 import { useConnections } from "./connections"
 import { useSessions, abortedSessions } from "./sessions"
 import { send as notify } from "../lib/notifications"
@@ -9,6 +10,7 @@ import { AnalyticsEvent, track } from "../lib/analytics"
 import { recordSuccessfulSession } from "../lib/store-review"
 import { isAuthError } from "../lib/api-error"
 import { isSessionActuallyIdle } from "../lib/session-status-reconcile"
+import { shouldProbe } from "../lib/sse-keepalive"
 import type { Client, Part, Session, Message } from "../lib/sdk"
 
 // Session status from the server
@@ -71,6 +73,14 @@ const erroredSessions = new Set<string>()
 const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 15000] as const
 const STABLE_CONNECTION_MS = 10_000
 const PROLONGED_DISCONNECT_MS = 30_000
+
+// Dead-stream detection: when foregrounded and no SSE event for this long,
+// probe the server with a cheap health request. A healthy server means the
+// stream is merely idle (don't reconnect); a failed probe means the
+// connection/tunnel died silently and we reconnect immediately.
+const STALE_AFTER_MS = 120_000
+const STALE_CHECK_MS = 30_000
+const PROBE_TIMEOUT_MS = 5_000
 
 // Re-fetch pending permissions and questions from the server for a session.
 // Called when entering a session to recover from missed SSE events or failed
@@ -168,7 +178,7 @@ export const useEvents = create<EventsState>((set, get) => ({
 
     controller = new AbortController()
     const currentController = controller
-    set({ connected: true, authError: false })
+    set({ authError: false })
     console.log("[SSE] Connecting to event stream...")
     addBreadcrumb({ category: "sse", message: "connecting" })
 
@@ -186,6 +196,33 @@ export const useEvents = create<EventsState>((set, get) => ({
           set({ reconnectAttempts: 0, lastDisconnectAt: null })
         }
       }, STABLE_CONNECTION_MS)
+
+      // "Connected" is only true once the stream actually delivered a byte — the
+      // optimistic flag lied while the fetch was still in flight.
+      let receivedFirstEvent = false
+      let lastEventAt = Date.now()
+
+      const staleTimer = setInterval(() => {
+        if (currentController.signal.aborted) return
+        const now = Date.now()
+        if (!shouldProbe({ lastEventAt, now, appActive: AppState.currentState === "active" }, STALE_AFTER_MS)) return
+        client.global
+          .health(PROBE_TIMEOUT_MS)
+          .then((res) => {
+            if (res?.healthy) {
+              // Server alive, stream merely idle — reset the clock, keep the stream.
+              lastEventAt = Date.now()
+            } else {
+              throw new Error("health check returned unhealthy")
+            }
+          })
+          .catch(() => {
+            // Connection/tunnel is genuinely dead — tear down and reconnect now.
+            if (currentController.signal.aborted) return
+            controller?.abort()
+            get().connect()
+          })
+      }, STALE_CHECK_MS)
 
       const scheduleReconnect = (reason: unknown) => {
         if (reconnectScheduled || currentController.signal.aborted) return
@@ -225,6 +262,12 @@ export const useEvents = create<EventsState>((set, get) => ({
       try {
         for await (const event of client.global.events(currentController.signal)) {
           if (currentController.signal.aborted) break
+
+          if (!receivedFirstEvent) {
+            receivedFirstEvent = true
+            set({ connected: true })
+          }
+          lastEventAt = Date.now()
 
           // The stream is genuinely live again (we're actually receiving
           // data, not just optimistically marked "connected") — resync once
@@ -472,6 +515,7 @@ export const useEvents = create<EventsState>((set, get) => ({
         }
       } finally {
         clearTimeout(stableTimer)
+        clearInterval(staleTimer)
         if (currentController.signal.aborted) {
           console.log("[SSE] Disconnected (aborted)")
         }
