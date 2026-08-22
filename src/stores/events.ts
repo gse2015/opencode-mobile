@@ -59,6 +59,11 @@ interface EventsState {
 
   connect: () => void
   disconnect: () => void
+  // Called on every foreground transition. The background JS freeze can kill the
+  // socket without any error surfacing, and the reconnect loop never ran while
+  // frozen — so unconditionally rebuild the stream and reconcile busy sessions
+  // (missed busy->idle events are NOT replayed by the server).
+  resume: () => void
 }
 
 let controller: AbortController | null = null
@@ -521,6 +526,18 @@ export const useEvents = create<EventsState>((set, get) => ({
         }
       }
     })()
+  },
+
+  resume: () => {
+    if (get().authError) return // bad credentials: keep stopped until user fixes them
+    const client = useConnections.getState().client
+    if (!client) return
+    // Unconditional reconcile: this is what repairs state lost while the app was
+    // frozen (resyncBusySessions only runs on its own when reconnectAttempts > 0,
+    // which the stable timer may have reset). Cheap — no-op unless a session is busy.
+    void resyncBusySessions()
+    // Rebuild the stream immediately instead of waiting for a stale read error.
+    get().connect()
   },
 
   disconnect: () => {

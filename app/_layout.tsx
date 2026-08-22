@@ -120,6 +120,27 @@ function RootLayout() {
     return () => sub.remove()
   }, [])
 
+  // Returning to the foreground may find the SSE socket dead (Android froze the
+  // JS thread and the stream's error never surfaced). resume() rebuilds the
+  // stream immediately and reconciles busy sessions, so background/foreground
+  // round-trips feel seamless instead of flashing "reconnecting".
+  useEffect(() => {
+    // Only resume when actually returning from a background state. Transient
+    // inactive→active transitions (biometric prompt, app switcher, control
+    // center) also fire "active" — resuming then would tear down a healthy
+    // stream and drop in-flight events.
+    let wasBackgrounded = false
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "background") {
+        wasBackgrounded = true
+      } else if (next === "active" && wasBackgrounded) {
+        wasBackgrounded = false
+        useEvents.getState().resume()
+      }
+    })
+    return () => sub.remove()
+  }, [])
+
   // Connect/disconnect SSE and load catalog when client changes
   useEffect(() => {
     if (client && !sseStarted.current) {

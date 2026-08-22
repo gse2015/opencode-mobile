@@ -195,8 +195,13 @@ export default function SessionScreen() {
 
   // SSE reconnect banner
   const reconnectAttempts = useEvents((s) => s.reconnectAttempts)
+  const lastDisconnectAt = useEvents((s) => s.lastDisconnectAt)
   const [showConnectedFlash, setShowConnectedFlash] = useState(false)
   const prevReconnecting = useRef(false)
+  // lastDisconnectAt is reset to null in the same set() that resets
+  // reconnectAttempts (events.ts stableTimer), so the transition effect can't
+  // read the disconnect time from the store — cache the last non-null value here.
+  const lastDisconnectAtRef = useRef<number | null>(null)
 
   // Voice input — transcript appends to the text input on completion
   const speech = useSpeech(
@@ -633,18 +638,26 @@ export default function SessionScreen() {
     if (!loadingMore) loadingTriggered.current = false
   }, [loadingMore])
 
-  // Detect reconnecting → stable transition for the "Connected ✓" flash.
-  // reconnectAttempts and lastDisconnectAt reset in the same set() call, so we
-  // can't use lastDisconnectAt alone; a useRef tracks the prior reconnecting state.
+  // Detect reconnecting → stable transition for the "Connected ✓" flash. Only
+  // flash after a genuinely long disconnect: disconnectedFor already includes
+  // the ~10s stability period (STABLE_CONNECTION_MS) that elapses between
+  // recovery and reconnectAttempts being reset, so a 25s threshold means the
+  // real disconnect was >= ~15s; a quick background/foreground round-trip
+  // recovers silently via resume() and must not flash.
   useEffect(() => {
     const isReconnecting = reconnectAttempts > 0
     if (prevReconnecting.current && !isReconnecting) {
-      setShowConnectedFlash(true)
-      const t = setTimeout(() => setShowConnectedFlash(false), 2000)
-      return () => clearTimeout(t)
+      const disconnectedFor = Date.now() - (lastDisconnectAtRef.current ?? Date.now())
+      if (disconnectedFor >= 25_000) {
+        prevReconnecting.current = false
+        setShowConnectedFlash(true)
+        const t = setTimeout(() => setShowConnectedFlash(false), 2000)
+        return () => clearTimeout(t)
+      }
     }
     prevReconnecting.current = isReconnecting
-  }, [reconnectAttempts])
+    if (lastDisconnectAt !== null) lastDisconnectAtRef.current = lastDisconnectAt
+  }, [reconnectAttempts, lastDisconnectAt])
 
   const handlePermissionReply = async (requestID: string, reply: "once" | "always" | "reject") => {
     if (!sessionClient || !sessionID) return
@@ -801,7 +814,7 @@ export default function SessionScreen() {
         />
 
         {/* SSE reconnect/connected banner */}
-        {reconnectAttempts > 0 && (
+        {reconnectAttempts > 1 && (
           <View style={[s.banner, s.bannerReconnecting]}>
             <Text style={s.bannerText}>{t("session.banners.reconnecting", { attempt: reconnectAttempts })}</Text>
           </View>
