@@ -263,6 +263,14 @@ npx -y @vibebrowser/cli@0.2.12 \
   --remote "$VIBEBROWSER_REMOTE_URL" --page-id <id> --json snapshot
 ```
 
+## Branch Strategy
+
+- **`main` is the release branch.** Releases are cut from it (versionCode bump + GitHub Release tag). Never develop directly on `main`.
+- **New features** → branch `feat_<name>` off `main`. **Bug fixes** → branch `fix_<name>` off `main`.
+- On a feature/fix branch: develop, verify, fix issues. When done, **clean up the commit history before merging** — rebuild/squash it into a small set of logical, meaningful commits. Branches naturally accumulate test, experiment, and abandoned-attempt commits; they must NOT land on `main` verbatim.
+- **Merging into `main` happens ONLY on the owner's explicit instruction.** Never auto-merge, never merge on your own judgment.
+- There is no `dev` branch.
+
 ## GitHub Auth
 
 Pushes/gh CLI on this repo use the machine's default GitHub credentials (`gse2015`). The upstream-only credential file `~/.env.d/github-dzianisv.env` (referenced by upstream docs) is for `dzianisv/*` operations and is not needed here.
