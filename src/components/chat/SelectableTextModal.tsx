@@ -99,7 +99,9 @@ const s = StyleSheet.create({
   titleDark: { color: "#ffffff" },
   copyBtn: { fontSize: 14, color: "#8b5cf6", fontWeight: "600" },
 
-  body: { flexGrow: 0 },
+  // flexShrink lets a very long message collapse the body instead of
+  // overflowing the maxHeight-capped sheet (hint would be pushed off-screen).
+  body: { flexGrow: 0, flexShrink: 1 },
   bodyContent: { padding: 16 },
   text: { fontSize: 15, lineHeight: 22, color: "#0a0a0a" },
   textDark: { color: "#e5e5e5" },

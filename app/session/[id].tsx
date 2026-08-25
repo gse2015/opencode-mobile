@@ -311,7 +311,7 @@ export default function SessionScreen() {
     if (canCopy) {
       actions.push({
         text: t("session.actions.copyMessage"),
-        onPress: () => { Clipboard.setStringAsync(copyText) },
+        onPress: () => { Clipboard.setStringAsync(copyText).catch(() => {}) },
       })
       actions.push({
         text: t("session.actions.selectText"),
