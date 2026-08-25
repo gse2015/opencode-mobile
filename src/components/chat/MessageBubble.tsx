@@ -16,9 +16,10 @@ interface Props {
   message: Message
   parts: Part[]
   isDark: boolean
-  // Only wired up for user messages — long-press opens the "Edit message" /
-  // revert action sheet. Identified by messageID (not a closure over parts)
-  // so it stays correct even if the memo below bails on a stale render.
+  // Long-press opens the message action sheet (copy / select text for any
+  // role; "Edit message" for user messages). Identified by messageID (not a
+  // closure over parts) so it stays correct even if the memo below bails on
+  // a stale render.
   onLongPress?: (messageID: string) => void
 }
 
@@ -37,9 +38,9 @@ export const MessageBubble = memo(
 
     return (
       <TouchableOpacity
-        activeOpacity={isUser && onLongPress ? 0.7 : 1}
-        onLongPress={isUser && onLongPress ? () => onLongPress(message.id) : undefined}
-        disabled={!isUser || !onLongPress}
+      activeOpacity={onLongPress ? 0.7 : 1}
+      onLongPress={onLongPress ? () => onLongPress(message.id) : undefined}
+      disabled={!onLongPress}
         style={[
           s.bubble,
           isUser ? s.user : s.assistant,

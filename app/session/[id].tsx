@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native"
+import type { AlertButton } from "react-native"
 import { useLocalSearchParams, Stack, useRouter, useFocusEffect } from "expo-router"
 import { Ionicons } from "@expo/vector-icons"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -32,6 +33,7 @@ import {
   VariantPicker,
   ImageAttachments,
   SessionInfo,
+  SelectableTextModal,
   type SlashCommand,
   type Attachment,
 } from "../../src/components/chat"
@@ -43,6 +45,7 @@ import { useCatalog } from "../../src/stores/catalog"
 import { useSpeech } from "../../src/lib/speech"
 import { buildForkableMessages } from "../../src/lib/session-ops"
 import { useKeyboardInset } from "../../src/lib/use-keyboard-inset"
+import { extractCopyText, hasCopyableText } from "../../src/lib/message-copy-text"
 
 // --- Builtin slash commands ---
 const BUILTIN_COMMANDS: SlashCommand[] = [
@@ -132,6 +135,9 @@ export default function SessionScreen() {
   const [input, setInput] = useState("")
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [showInfo, setShowInfo] = useState(false)
+  // Source text of the message currently shown in the select-text modal.
+  // A snapshot (not an id) so streaming updates can't mutate what's on screen.
+  const [selectableText, setSelectableText] = useState<string | null>(null)
   // Android keyboard inset: measured from IME insets + window shrink (see
   // use-keyboard-inset.ts). KeyboardAvoidingView's padding relies on the
   // keyboardDidShow screenY, which RN 0.81 reports incorrectly under
@@ -295,9 +301,25 @@ export default function SessionScreen() {
   // closing over props) so MessageBubble's custom memo comparator can bail
   // safely without risking a stale handler.
   const handleMessageLongPress = useCallback((messageID: string) => {
-    Alert.alert(t("session.alerts.messageActionsTitle"), undefined, [
-      { text: t("common.cancel"), style: "cancel" },
-      {
+    const state = useSessions.getState()
+    const parts = state.parts[messageID]
+    const isUser = state.messages.find((m) => m.id === messageID)?.role === "user"
+    const copyText = extractCopyText(parts)
+    const canCopy = hasCopyableText(parts)
+
+    const actions: AlertButton[] = [{ text: t("common.cancel"), style: "cancel" }]
+    if (canCopy) {
+      actions.push({
+        text: t("session.actions.copyMessage"),
+        onPress: () => { Clipboard.setStringAsync(copyText) },
+      })
+      actions.push({
+        text: t("session.actions.selectText"),
+        onPress: () => { setSelectableText(copyText) },
+      })
+    }
+    if (isUser) {
+      actions.push({
         text: t("session.actions.editMessage"),
         onPress: () => {
           const doRevert = async () => {
@@ -320,8 +342,12 @@ export default function SessionScreen() {
           }
           doRevert()
         },
-      },
-    ])
+      })
+    }
+    // A message without prose (e.g. tool-only) has nothing to copy, select
+    // or edit — don't open an empty sheet.
+    if (actions.length === 1) return
+    Alert.alert(t("session.alerts.messageActionsTitle"), undefined, actions)
   }, [applyRevertResult, t])
 
   const scrollToBottom = useCallback((animated = true) => {
@@ -811,6 +837,15 @@ export default function SessionScreen() {
             flatListRef.current?.scrollToEnd({ animated: true })
           }}
           onClose={() => setShowInfo(false)}
+        />
+
+        {/* Selectable copy of a message's source text. Rendered as a
+            Modal (own host view, outside the transcript FlatList) so
+            `selectable` works on Android — see SelectableTextModal. */}
+        <SelectableTextModal
+          visible={selectableText !== null}
+          text={selectableText ?? ""}
+          onClose={() => setSelectableText(null)}
         />
 
         {/* SSE reconnect/connected banner */}
