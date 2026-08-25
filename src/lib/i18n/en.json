@@ -95,7 +95,9 @@
     },
     "actions": {
       "editMessage": "Edit message",
-      "replace": "Replace"
+      "replace": "Replace",
+      "copyMessage": "Copy message",
+      "selectText": "Select text"
     },
     "alerts": {
       "messageActionsTitle": "Message actions",
@@ -163,6 +165,12 @@
       "unshareFailedMessage": "Could not remove the share link. Please try again.",
       "unshareUnsupportedTitle": "Not supported",
       "unshareUnsupportedMessage": "This server does not support unsharing sessions. Please update the server and try again."
+    },
+    "selectText": {
+      "title": "Select text",
+      "copyAll": "Copy all",
+      "copied": "Copied!",
+      "hint": "Press and hold the text to select part of it."
     },
     "forkSheet": {
       "title": "Fork Session",
