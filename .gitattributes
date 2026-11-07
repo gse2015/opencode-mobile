@@ -1,0 +1,6 @@
+# Normalize line endings: text files are LF in the repository; Windows batch
+# files keep CRLF. Prevents CRLF contamination when committing from Windows
+# checkouts (see feat_v2-sync CI failure: ./gradlew "/bin/sh^M: bad interpreter").
+* text=auto
+*.bat text eol=crlf
+*.jar binary

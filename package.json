@@ -1,6 +1,6 @@
 {
   "name": "@opencode-ai/mobile",
-  "version": "0.4.16",
+  "version": "0.4.18",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "check:versions": "node scripts/check-version-parity.mjs",
-    "test": "node --test 'src/**/*.test.ts' 'scripts/*.test.mjs'"
+    "test": "node --test 'src/**/*.test.ts' 'scripts/*.test.mjs' 'plugins/*.test.js'"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

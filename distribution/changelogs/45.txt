@@ -1,0 +1,7 @@
+v0.4.18 — OpenCode v2 servers are now supported
+
+• The app now speaks the OpenCode v2 server API (/api/ routes, new event stream) and detects which API a server offers when you connect. Servers still running v1 (opencode 1.x) keep working through the legacy client — no server upgrade required.
+• New "Select text" action on messages: open any message full-screen to select and copy its text.
+• Fixed messages being lost when switching between project directories.
+• Fixed connections through some tunnels (ngrok, Cloudflare) failing before they reached the server.
+• Fixed a crash that could occur when leaving a session while it was updating.
